@@ -2,12 +2,14 @@ import FormModal from "@/components/FormModal";
 import Pagination from "@/components/Pagination";
 import Table from "@/components/Table";
 import TableSearch from "@/components/TableSearch";
-import { role, studentsData } from "@/lib/data";
+import { role } from "@/lib/data";
 import Image from "next/image";
 import Link from "next/link";
+import connectToDB from "@/lib/db";
+import { Student as StudentModel } from "@/lib/models";
 
 type Student = {
-  id: number;
+  id: string;
   studentId: string;
   name: string;
   email?: string;
@@ -49,7 +51,14 @@ const columns = [
   },
 ];
 
-const StudentListPage = () => {
+const StudentListPage = async () => {
+  await connectToDB();
+  const rawStudents = await StudentModel.find({});
+  const studentsData = JSON.parse(JSON.stringify(rawStudents)).map((s: any) => ({
+    ...s,
+    id: s._id,
+  }));
+
   const renderRow = (item: Student) => (
     <tr
       key={item.id}
@@ -57,7 +66,7 @@ const StudentListPage = () => {
     >
       <td className="flex items-center gap-4 p-4">
         <Image
-          src={item.photo}
+          src={item.photo || "/avatar.png"}
           alt=""
           width={40}
           height={40}
@@ -74,15 +83,12 @@ const StudentListPage = () => {
       <td className="hidden md:table-cell">{item.address}</td>
       <td>
         <div className="flex items-center gap-2">
-          <Link href={`/list/teachers/${item.id}`}>
+          <Link href={`/list/students/${item.id}`}>
             <button className="w-7 h-7 flex items-center justify-center rounded-full bg-lamaSky">
               <Image src="/view.png" alt="" width={16} height={16} />
             </button>
           </Link>
           {role === "admin" && (
-            // <button className="w-7 h-7 flex items-center justify-center rounded-full bg-lamaPurple">
-            //   <Image src="/delete.png" alt="" width={16} height={16} />
-            // </button>
             <FormModal table="student" type="delete" id={item.id}/>
           )}
         </div>
@@ -105,9 +111,6 @@ const StudentListPage = () => {
               <Image src="/sort.png" alt="" width={14} height={14} />
             </button>
             {role === "admin" && (
-              // <button className="w-8 h-8 flex items-center justify-center rounded-full bg-lamaYellow">
-              //   <Image src="/plus.png" alt="" width={14} height={14} />
-              // </button>
               <FormModal table="student" type="create"/>
             )}
           </div>

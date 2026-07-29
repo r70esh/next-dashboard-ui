@@ -2,14 +2,14 @@ import FormModal from "@/components/FormModal";
 import Pagination from "@/components/Pagination";
 import Table from "@/components/Table";
 import TableSearch from "@/components/TableSearch";
-import {
-  resultsData,
-  role,
-} from "@/lib/data";
 import Image from "next/image";
+import connectToDB from "@/lib/db";
+import { Result as ResultModel } from "@/lib/models";
+import { getServerSession } from "next-auth";
+import { authOptions } from "@/lib/auth";
 
 type Result = {
-  id: number;
+  id: string;
   subject: string;
   class: string;
   teacher: string;
@@ -20,46 +20,29 @@ type Result = {
 };
 
 const columns = [
-  {
-    header: "Subject Name",
-    accessor: "name",
-  },
-  {
-    header: "Student",
-    accessor: "student",
-  },
-  {
-    header: "Score",
-    accessor: "score",
-    className: "hidden md:table-cell",
-  },
-  {
-    header: "Teacher",
-    accessor: "teacher",
-    className: "hidden md:table-cell",
-  },
-  {
-    header: "Class",
-    accessor: "class",
-    className: "hidden md:table-cell",
-  },
-  {
-    header: "Date",
-    accessor: "date",
-    className: "hidden md:table-cell",
-  },
-  {
-    header: "Actions",
-    accessor: "action",
-  },
+  { header: "Subject Name", accessor: "name" },
+  { header: "Student", accessor: "student" },
+  { header: "Score", accessor: "score", className: "hidden md:table-cell" },
+  { header: "Teacher", accessor: "teacher", className: "hidden md:table-cell" },
+  { header: "Class", accessor: "class", className: "hidden md:table-cell" },
+  { header: "Date", accessor: "date", className: "hidden md:table-cell" },
+  { header: "Actions", accessor: "action" },
 ];
 
-const ResultListPage = () => {
+const ResultListPage = async () => {
+  const session = await getServerSession(authOptions);
+  const role = (session?.user as any)?.role || "admin";
+
+  await connectToDB();
+  const raw = await ResultModel.find({});
+  const data: Result[] = JSON.parse(JSON.stringify(raw)).map((r: any) => ({
+    ...r,
+    id: r._id,
+    date: new Date(r.date).toLocaleDateString(),
+  }));
+
   const renderRow = (item: Result) => (
-    <tr
-      key={item.id}
-      className="border-b border-gray-200 even:bg-slate-50 text-sm hover:bg-lamaPurpleLight"
-    >
+    <tr key={item.id} className="border-b border-gray-200 even:bg-slate-50 text-sm hover:bg-lamaPurpleLight">
       <td className="flex items-center gap-4 p-4">{item.subject}</td>
       <td>{item.student}</td>
       <td className="hidden md:table-cell">{item.score}</td>
@@ -68,7 +51,7 @@ const ResultListPage = () => {
       <td className="hidden md:table-cell">{item.date}</td>
       <td>
         <div className="flex items-center gap-2">
-          {role === "admin" || role === "teacher" && (
+          {(role === "admin" || role === "teacher") && (
             <>
               <FormModal table="result" type="update" data={item} />
               <FormModal table="result" type="delete" id={item.id} />
@@ -81,7 +64,6 @@ const ResultListPage = () => {
 
   return (
     <div className="bg-white p-4 rounded-md flex-1 m-4 mt-0">
-      {/* TOP */}
       <div className="flex items-center justify-between">
         <h1 className="hidden md:block text-lg font-semibold">All Results</h1>
         <div className="flex flex-col md:flex-row items-center gap-4 w-full md:w-auto">
@@ -93,13 +75,11 @@ const ResultListPage = () => {
             <button className="w-8 h-8 flex items-center justify-center rounded-full bg-lamaYellow">
               <Image src="/sort.png" alt="" width={14} height={14} />
             </button>
-            {role === "admin" || role === "teacher" && <FormModal table="result" type="create" />}
+            {(role === "admin" || role === "teacher") && <FormModal table="result" type="create" />}
           </div>
         </div>
       </div>
-      {/* LIST */}
-      <Table columns={columns} renderRow={renderRow} data={resultsData} />
-      {/* PAGINATION */}
+      <Table columns={columns} renderRow={renderRow} data={data} />
       <Pagination />
     </div>
   );

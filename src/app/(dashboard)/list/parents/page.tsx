@@ -2,11 +2,13 @@ import FormModal from "@/components/FormModal";
 import Pagination from "@/components/Pagination";
 import Table from "@/components/Table";
 import TableSearch from "@/components/TableSearch";
-import { parentsData, role } from "@/lib/data";
+import { role } from "@/lib/data";
 import Image from "next/image";
+import connectToDB from "@/lib/db";
+import { Parent as ParentModel } from "@/lib/models";
 
 type Parent = {
-  id: number;
+  id: string;
   name: string;
   email?: string;
   students: string[];
@@ -40,7 +42,14 @@ const columns = [
   },
 ];
 
-const ParentListPage = () => {
+const ParentListPage = async () => {
+  await connectToDB();
+  const rawParents = await ParentModel.find({});
+  const parentsData = JSON.parse(JSON.stringify(rawParents)).map((p: any) => ({
+    ...p,
+    id: p._id,
+  }));
+
   const renderRow = (item: Parent) => (
     <tr
       key={item.id}
@@ -52,7 +61,7 @@ const ParentListPage = () => {
           <p className="text-xs text-gray-500">{item?.email}</p>
         </div>
       </td>
-      <td className="hidden md:table-cell">{item.students.join(",")}</td>
+      <td className="hidden md:table-cell">{item.students?.join(",")}</td>
       <td className="hidden md:table-cell">{item.phone}</td>
       <td className="hidden md:table-cell">{item.address}</td>
       <td>
@@ -83,7 +92,7 @@ const ParentListPage = () => {
               <Image src="/sort.png" alt="" width={14} height={14} />
             </button>
             {role === "admin" && (
-              <FormModal table="teacher" type="create"/>
+              <FormModal table="parent" type="create"/>
             )}
           </div>
         </div>

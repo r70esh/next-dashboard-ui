@@ -1,6 +1,7 @@
-import { role } from "@/lib/data";
 import Image from "next/image";
 import Link from "next/link";
+import { getServerSession } from "next-auth";
+import { authOptions } from "@/lib/auth";
 
 const menuItems = [
   {
@@ -117,7 +118,10 @@ const menuItems = [
   },
 ];
 
-const Menu = () => {
+const Menu = async () => {
+  const session = await getServerSession(authOptions);
+  const role = (session?.user as any)?.role || "admin";
+
   return (
     <div className="mt-4 text-sm">
       {menuItems.map((i) => (
