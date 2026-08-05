@@ -4,7 +4,7 @@ import Table from "@/components/Table";
 import TableSearch from "@/components/TableSearch";
 import Image from "next/image";
 import connectToDB from "@/lib/db";
-import { Exam as ExamModel } from "@/lib/models";
+import { Exam as ExamModel, Teacher, Student, Parent } from "@/lib/models";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 
@@ -27,9 +27,62 @@ const columns = [
 const ExamListPage = async () => {
   const session = await getServerSession(authOptions);
   const role = (session?.user as any)?.role || "admin";
+  const userId = (session?.user as any)?.id;
+  const userEmail = session?.user?.email;
 
   await connectToDB();
-  const raw = await ExamModel.find({});
+
+  let filter: any = {};
+
+  if (role === "admin") {
+    filter = {};
+  } else if (role === "teacher") {
+    // Teacher sees exams for classes they teach or created by them
+    const teacherObj = await Teacher.findOne({
+      $or: [{ _id: userId }, { email: userEmail }]
+    });
+    if (teacherObj) {
+      filter = {
+        $or: [
+          { teacher: teacherObj.name },
+          { class: { $in: teacherObj.classes || [] } }
+        ]
+      };
+    }
+  } else if (role === "student") {
+    // Student ONLY sees exams for their specific class!
+    const studentObj = await Student.findOne({
+      $or: [{ _id: userId }, { email: userEmail }]
+    });
+    if (studentObj && studentObj.class) {
+      filter = { class: studentObj.class };
+    } else {
+      filter = { class: "__NONE__" };
+    }
+  } else if (role === "parent") {
+    // Parent ONLY sees exams for the classes of their linked children!
+    const parentObj = await Parent.findOne({
+      $or: [{ _id: userId }, { email: userEmail }]
+    });
+    if (parentObj && parentObj.students && parentObj.students.length > 0) {
+      const children = await Student.find({
+        $or: [
+          { name: { $in: parentObj.students } },
+          { email: { $in: parentObj.students } }
+        ]
+      });
+      const childrenClasses = Array.from(new Set(children.map((c) => c.class).filter(Boolean)));
+      if (childrenClasses.length > 0) {
+        filter = { class: { $in: childrenClasses } };
+      } else {
+        filter = { class: "__NONE__" };
+      }
+    } else {
+      filter = { class: "__NONE__" };
+    }
+  }
+
+  const raw = await ExamModel.find(filter);
   const data: Exam[] = JSON.parse(JSON.stringify(raw)).map((e: any) => ({
     ...e,
     id: e._id,
@@ -37,9 +90,13 @@ const ExamListPage = async () => {
   }));
 
   const renderRow = (item: Exam) => (
-    <tr key={item.id} className="border-b border-gray-200 even:bg-slate-50 text-sm hover:bg-lamaPurpleLight">
-      <td className="flex items-center gap-4 p-4">{item.subject}</td>
-      <td>{item.class}</td>
+    <tr key={item.id} className="border-b border-gray-200 even:bg-slate-50 text-sm hover:bg-mahankalPurpleLight">
+      <td className="flex items-center gap-4 p-4 font-medium">{item.subject}</td>
+      <td>
+        <span className="bg-amber-100 text-amber-900 font-bold px-2 py-1 rounded text-xs">
+          Class {item.class}
+        </span>
+      </td>
       <td className="hidden md:table-cell">{item.teacher}</td>
       <td className="hidden md:table-cell">{item.date}</td>
       <td>
@@ -58,14 +115,14 @@ const ExamListPage = async () => {
   return (
     <div className="bg-white p-4 rounded-md flex-1 m-4 mt-0">
       <div className="flex items-center justify-between">
-        <h1 className="hidden md:block text-lg font-semibold">All Exams</h1>
+        <h1 className="hidden md:block text-lg font-semibold">Exams / Class Tests</h1>
         <div className="flex flex-col md:flex-row items-center gap-4 w-full md:w-auto">
           <TableSearch />
           <div className="flex items-center gap-4 self-end">
-            <button className="w-8 h-8 flex items-center justify-center rounded-full bg-lamaYellow">
+            <button className="w-8 h-8 flex items-center justify-center rounded-full bg-mahankalYellow">
               <Image src="/filter.png" alt="" width={14} height={14} />
             </button>
-            <button className="w-8 h-8 flex items-center justify-center rounded-full bg-lamaYellow">
+            <button className="w-8 h-8 flex items-center justify-center rounded-full bg-mahankalYellow">
               <Image src="/sort.png" alt="" width={14} height={14} />
             </button>
             {(role === "admin" || role === "teacher") && <FormModal table="exam" type="create" />}

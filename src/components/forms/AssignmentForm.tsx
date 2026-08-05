@@ -10,10 +10,7 @@ import { useState } from "react";
 
 const schema = z.object({
   subject: z.string().min(2, { message: "Subject must be at least 2 characters!" }),
-  class: z.string().refine((val) => {
-    const n = parseInt(val);
-    return n >= 1 && n <= 12 && !isNaN(n);
-  }, { message: "Class must be between 1 and 12!" }),
+  class: z.string().min(1, { message: "Class is required!" }),
   teacher: z.string().min(2, { message: "Teacher name is required!" }),
   dueDate: z.string().min(1, { message: "Due date is required!" }),
 });
@@ -66,8 +63,8 @@ const AssignmentForm = ({ type, data }: { type: "create" | "update"; data?: any 
 
       <span className="text-xs text-gray-400 font-medium">Assignment Details</span>
       <div className="flex justify-between flex-wrap gap-4">
-        <InputField label="Subject" name="subject" register={register} error={errors.subject} />
-        <InputField label="Class (1-12)" name="class" register={register} error={errors.class} />
+        <InputField label="Subject Name" name="subject" register={register} error={errors.subject} />
+        <InputField label="Target Class (1-12)" name="class" register={register} error={errors.class} />
         <InputField label="Teacher Name" name="teacher" register={register} error={errors.teacher} />
         <InputField label="Due Date" name="dueDate" type="date" register={register} error={errors.dueDate} />
       </div>
@@ -75,7 +72,7 @@ const AssignmentForm = ({ type, data }: { type: "create" | "update"; data?: any 
       <button
         type="submit"
         disabled={loading}
-        className="bg-lamaSky text-white p-2 rounded-md font-medium disabled:opacity-60 mt-2"
+        className="bg-mahankalSky text-white p-2 rounded-md font-medium disabled:opacity-60 mt-2"
       >
         {loading ? "Saving..." : type === "create" ? "Create Assignment" : "Update Assignment"}
       </button>

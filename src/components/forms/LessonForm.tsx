@@ -61,7 +61,7 @@ const LessonForm = ({ type, data }: { type: "create" | "update"; data?: any }) =
       <InputField label="Subject" name="subject" register={register} error={errors.subject} />
       <InputField label="Class (1-12)" name="class" register={register} error={errors.class} />
       <InputField label="Teacher" name="teacher" register={register} error={errors.teacher} />
-      <button type="submit" disabled={loading} className="bg-lamaSky text-white p-2 rounded-md font-medium disabled:opacity-60">
+      <button type="submit" disabled={loading} className="bg-mahankalSky text-white p-2 rounded-md font-medium disabled:opacity-60">
         {loading ? "Saving..." : type === "create" ? "Create Lesson" : "Update Lesson"}
       </button>
     </form>

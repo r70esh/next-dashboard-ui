@@ -87,16 +87,19 @@ const resultSchema = new mongoose.Schema({
   class: { type: String, required: true },
   teacher: { type: String, required: true },
   student: { type: String, required: true },
-  type: { type: String, enum: ["exam", "assignment"], required: true },
+  type: { type: String, enum: ["assignment", "class_test", "terminal_exam"], required: true },
   date: { type: Date, required: true },
   score: { type: Number, required: true },
+  maxScore: { type: Number, default: 100 },
 }, { timestamps: true });
 
 const attendanceSchema = new mongoose.Schema({
   date: { type: Date, required: true },
   student: { type: String, required: true },
+  class: { type: String },
   status: { type: String, enum: ["present", "absent", "late"], required: true },
 }, { timestamps: true });
+
 
 const eventSchema = new mongoose.Schema({
   title: { type: String, required: true },

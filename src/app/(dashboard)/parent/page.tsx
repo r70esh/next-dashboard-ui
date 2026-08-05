@@ -7,7 +7,7 @@ import connectToDB from "@/lib/db";
 import { Parent, Student, Result, Attendance, Event as EventModel } from "@/lib/models";
 import Image from "next/image";
 
-const bgList = ["bg-lamaSkyLight", "bg-lamaPurpleLight", "bg-lamaYellowLight", "bg-pink-50"];
+const bgList = ["bg-mahankalSkyLight", "bg-mahankalPurpleLight", "bg-mahankalYellowLight", "bg-pink-50"];
 
 const ParentPage = async () => {
   const session = await getServerSession(authOptions);
@@ -58,7 +58,7 @@ const ParentPage = async () => {
       <div className="w-full xl:w-2/3 flex flex-col gap-4">
 
         {/* WELCOME */}
-        <div className="bg-lamaYellow rounded-xl p-5 flex items-center gap-4">
+        <div className="bg-mahankalYellow rounded-xl p-5 flex items-center gap-4">
           <div className="w-14 h-14 rounded-full bg-white flex items-center justify-center text-2xl shadow">
             👨‍👩‍👧
           </div>

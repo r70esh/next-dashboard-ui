@@ -1,4 +1,5 @@
-import Image from "next/image"
+import Image from "next/image";
+import Link from "next/link";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 
@@ -22,14 +23,16 @@ const Navbar = async () => {
           <Image src="/announcement.png" alt="" width={20} height={20}/>
           <div className='absolute -top-3 -right-3 w-5 h-5 flex items-center justify-center bg-purple-500 text-white rounded-full text-xs'>1</div>
         </div>
-        <div className='flex flex-col'>
-          <span className="text-xs leading-3 font-medium">{user?.name || "Unknown"}</span>
-          <span className="text-[10px] text-gray-500 text-right capitalize">{user?.role || "Guest"}</span>
-        </div>
-        <Image src="/avatar.png" alt="" width={36} height={36} className="rounded-full"/>
+        <Link href="/profile" className="flex items-center gap-3 cursor-pointer hover:opacity-80 transition">
+          <div className='flex flex-col'>
+            <span className="text-xs leading-3 font-medium">{user?.name || "Unknown"}</span>
+            <span className="text-[10px] text-gray-500 text-right capitalize">{user?.role || "Guest"}</span>
+          </div>
+          <Image src="/avatar.png" alt="" width={36} height={36} className="rounded-full"/>
+        </Link>
       </div>
     </div>
   )
 }
 
-export default Navbar
+export default Navbar;

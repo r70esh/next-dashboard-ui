@@ -170,7 +170,7 @@ export default function RegisterPage() {
             <Image src="/logo.png" alt="logo" width={40} height={40} />
           </div>
           <h1 className="text-2xl font-extrabold text-white tracking-wide">Create Your Account</h1>
-          <p className="text-xs text-slate-300 mt-1">SchooLama Registration</p>
+          <p className="text-xs text-slate-300 mt-1">MAHANKAL Registration</p>
         </div>
 
         <div className="p-6 md:p-8">

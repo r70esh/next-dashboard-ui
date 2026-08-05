@@ -36,7 +36,7 @@ const EventCalendar = ({ events }: { events: EventType[] }) => {
         {filteredEvents.length > 0 ? (
           filteredEvents.map((event) => (
             <div
-              className="p-5 rounded-md border-2 border-gray-100 border-t-4 odd:border-t-lamaSky even:border-t-lamaPurple"
+              className="p-5 rounded-md border-2 border-gray-100 border-t-4 odd:border-t-mahankalSky even:border-t-mahankalPurple"
               key={event.id}
             >
               <div className="flex items-center justify-between">

@@ -141,7 +141,7 @@ const ParentForm = ({ type, data }: { type: "create" | "update"; data?: any }) =
       {selectedChildren.length > 0 && (
         <div className="flex flex-wrap gap-2">
           {selectedChildren.map((c) => (
-            <div key={c._id} className="flex items-center gap-2 bg-lamaSkyLight border border-lamaSky rounded-full px-3 py-1 text-sm">
+            <div key={c._id} className="flex items-center gap-2 bg-mahankalSkyLight border border-mahankalSky rounded-full px-3 py-1 text-sm">
               <span className="font-medium">{c.name}</span>
               {c.studentId && <span className="text-xs text-gray-500">({c.studentId})</span>}
               {c.class && <span className="text-xs text-gray-400">Class {c.class}</span>}
@@ -162,7 +162,7 @@ const ParentForm = ({ type, data }: { type: "create" | "update"; data?: any }) =
           <input
             type="text"
             placeholder="Enter class (e.g. 3 or 3A)"
-            className="flex-1 border border-gray-200 rounded-lg p-2 text-sm outline-none focus:ring-2 focus:ring-lamaSky"
+            className="flex-1 border border-gray-200 rounded-lg p-2 text-sm outline-none focus:ring-2 focus:ring-mahankalSky"
             value={classFilter}
             onChange={(e) => setClassFilter(e.target.value)}
             onKeyDown={(e) => e.key === "Enter" && (e.preventDefault(), searchStudents())}
@@ -171,7 +171,7 @@ const ParentForm = ({ type, data }: { type: "create" | "update"; data?: any }) =
             type="button"
             onClick={searchStudents}
             disabled={searching}
-            className="bg-lamaSky text-white px-4 py-2 rounded-lg text-sm font-medium disabled:opacity-60"
+            className="bg-mahankalSky text-white px-4 py-2 rounded-lg text-sm font-medium disabled:opacity-60"
           >
             {searching ? "..." : "Search"}
           </button>
@@ -187,7 +187,7 @@ const ParentForm = ({ type, data }: { type: "create" | "update"; data?: any }) =
                 type="button"
                 onClick={() => addChild(s)}
                 disabled={!!selectedChildren.find((c) => c._id === s._id)}
-                className="flex items-center justify-between bg-white border border-gray-200 rounded-lg px-3 py-2 hover:bg-lamaSkyLight text-left disabled:opacity-50"
+                className="flex items-center justify-between bg-white border border-gray-200 rounded-lg px-3 py-2 hover:bg-mahankalSkyLight text-left disabled:opacity-50"
               >
                 <span className="font-medium text-sm">{s.name}</span>
                 <div className="flex gap-2 text-xs text-gray-500">

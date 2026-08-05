@@ -81,7 +81,7 @@ const EventForm = ({ type, data }: { type: "create" | "update"; data?: any }) =>
         <label className="text-xs text-gray-500">Description</label>
         <textarea
           {...register("description")}
-          className="ring-[1.5px] ring-gray-300 p-2 rounded-md text-sm w-full outline-none focus:ring-lamaSky"
+          className="ring-[1.5px] ring-gray-300 p-2 rounded-md text-sm w-full outline-none focus:ring-mahankalSky"
           rows={3}
           placeholder="Enter event details here..."
         ></textarea>
@@ -93,7 +93,7 @@ const EventForm = ({ type, data }: { type: "create" | "update"; data?: any }) =>
       <button
         type="submit"
         disabled={loading}
-        className="bg-lamaYellow text-white p-2 rounded-md font-medium disabled:opacity-60 mt-2"
+        className="bg-mahankalYellow text-white p-2 rounded-md font-medium disabled:opacity-60 mt-2"
       >
         {loading ? "Saving..." : type === "create" ? "Create Event" : "Update Event"}
       </button>

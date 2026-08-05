@@ -147,9 +147,9 @@ const StudentForm = ({ type, data }: { type: "create" | "update"; data?: any }) 
 
       {/* Auto-generated ID preview */}
       {generatedId && (
-        <div className="flex items-center gap-3 bg-lamaYellowLight border border-lamaYellow rounded-lg p-3">
+        <div className="flex items-center gap-3 bg-mahankalYellowLight border border-mahankalYellow rounded-lg p-3">
           <span className="text-sm text-gray-600">Auto-generated Student ID:</span>
-          <span className="font-bold text-lg text-lamaPurple">{generatedId}</span>
+          <span className="font-bold text-lg text-mahankalPurple">{generatedId}</span>
           <span className="text-xs text-gray-400">(Class {watchedClass}, Roll {watchedRoll})</span>
         </div>
       )}
@@ -163,7 +163,7 @@ const StudentForm = ({ type, data }: { type: "create" | "update"; data?: any }) 
       <button
         type="submit"
         disabled={loading}
-        className="bg-lamaSky text-white p-2 rounded-md font-medium disabled:opacity-60"
+        className="bg-mahankalSky text-white p-2 rounded-md font-medium disabled:opacity-60"
       >
         {loading ? "Saving..." : type === "create" ? "Create Student" : "Update Student"}
       </button>

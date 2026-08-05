@@ -10,10 +10,7 @@ import { useState } from "react";
 
 const schema = z.object({
   subject: z.string().min(2, { message: "Subject is required!" }),
-  class: z.string().refine((val) => {
-    const n = parseInt(val);
-    return n >= 1 && n <= 12 && !isNaN(n);
-  }, { message: "Class must be between 1 and 12!" }),
+  class: z.string().min(1, { message: "Class is required!" }),
   teacher: z.string().min(2, { message: "Teacher name is required!" }),
   date: z.string().refine((val) => !isNaN(Date.parse(val)), { message: "Valid date required!" }),
 });
@@ -57,14 +54,14 @@ const ExamForm = ({ type, data }: { type: "create" | "update"; data?: any }) => 
 
   return (
     <form className="flex flex-col gap-6" onSubmit={onSubmit}>
-      <h1 className="text-xl font-semibold">{type === "create" ? "Create Exam" : "Update Exam"}</h1>
+      <h1 className="text-xl font-semibold">{type === "create" ? "Create Exam (Class Test)" : "Update Exam"}</h1>
       {error && <p className="text-red-500 text-sm bg-red-50 p-2 rounded">{error}</p>}
       {success && <p className="text-green-600 text-sm bg-green-50 p-2 rounded">{success}</p>}
-      <InputField label="Subject" name="subject" register={register} error={errors.subject} />
-      <InputField label="Class (1-12)" name="class" register={register} error={errors.class} />
-      <InputField label="Teacher" name="teacher" register={register} error={errors.teacher} />
+      <InputField label="Subject Name" name="subject" register={register} error={errors.subject} />
+      <InputField label="Target Class (1-12)" name="class" register={register} error={errors.class} />
+      <InputField label="Teacher Name" name="teacher" register={register} error={errors.teacher} />
       <InputField label="Date" name="date" type="date" register={register} error={errors.date} />
-      <button type="submit" disabled={loading} className="bg-lamaSky text-white p-2 rounded-md font-medium disabled:opacity-60">
+      <button type="submit" disabled={loading} className="bg-mahankalSky text-white p-2 rounded-md font-medium disabled:opacity-60">
         {loading ? "Saving..." : type === "create" ? "Create Exam" : "Update Exam"}
       </button>
     </form>

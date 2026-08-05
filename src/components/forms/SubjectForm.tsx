@@ -63,7 +63,7 @@ const SubjectForm = ({ type, data }: { type: "create" | "update"; data?: any }) 
       <button
         type="submit"
         disabled={loading}
-        className="bg-lamaSky text-white p-2 rounded-md font-medium disabled:opacity-60"
+        className="bg-mahankalSky text-white p-2 rounded-md font-medium disabled:opacity-60"
       >
         {loading ? "Saving..." : type === "create" ? "Create Subject" : "Update Subject"}
       </button>

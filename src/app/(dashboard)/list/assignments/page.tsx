@@ -4,7 +4,7 @@ import Table from "@/components/Table";
 import TableSearch from "@/components/TableSearch";
 import Image from "next/image";
 import connectToDB from "@/lib/db";
-import { Assignment as AssignmentModel, Student, Parent } from "@/lib/models";
+import { Assignment as AssignmentModel, Teacher, Student, Parent } from "@/lib/models";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 
@@ -27,22 +27,61 @@ const columns = [
 const AssignmentListPage = async () => {
   const session = await getServerSession(authOptions);
   const role = (session?.user as any)?.role || "admin";
+  const userId = (session?.user as any)?.id;
+  const userEmail = session?.user?.email;
 
   await connectToDB();
-  const userEmail = session?.user?.email;
+
   let filter: any = {};
-  if (role === "student") {
-    const student = await Student.findOne({ email: userEmail });
-    if (student?.class) {
-      filter = { class: student.class };
+
+  if (role === "admin") {
+    filter = {};
+  } else if (role === "teacher") {
+    // Teacher sees assignments created by them or for their classes
+    const teacherObj = await Teacher.findOne({
+      $or: [{ _id: userId }, { email: userEmail }]
+    });
+    if (teacherObj) {
+      filter = {
+        $or: [
+          { teacher: teacherObj.name },
+          { class: { $in: teacherObj.classes || [] } }
+        ]
+      };
+    }
+  } else if (role === "student") {
+    // Student ONLY sees assignments for their class!
+    const studentObj = await Student.findOne({
+      $or: [{ _id: userId }, { email: userEmail }]
+    });
+    if (studentObj && studentObj.class) {
+      filter = { class: studentObj.class };
+    } else {
+      filter = { class: "__NONE__" };
     }
   } else if (role === "parent") {
-    const parent = await Parent.findOne({ email: userEmail });
-    const childrenNames: string[] = parent?.students || [];
-    const children = await Student.find({ name: { $in: childrenNames } });
-    const classes = children.map((c: any) => c.class);
-    filter = { class: { $in: classes } };
+    // Parent ONLY sees assignments for the classes of their linked children!
+    const parentObj = await Parent.findOne({
+      $or: [{ _id: userId }, { email: userEmail }]
+    });
+    if (parentObj && parentObj.students && parentObj.students.length > 0) {
+      const children = await Student.find({
+        $or: [
+          { name: { $in: parentObj.students } },
+          { email: { $in: parentObj.students } }
+        ]
+      });
+      const childrenClasses = Array.from(new Set(children.map((c) => c.class).filter(Boolean)));
+      if (childrenClasses.length > 0) {
+        filter = { class: { $in: childrenClasses } };
+      } else {
+        filter = { class: "__NONE__" };
+      }
+    } else {
+      filter = { class: "__NONE__" };
+    }
   }
+
   const raw = await AssignmentModel.find(filter);
   const data: Assignment[] = JSON.parse(JSON.stringify(raw)).map((a: any) => ({
     ...a,
@@ -51,9 +90,13 @@ const AssignmentListPage = async () => {
   }));
 
   const renderRow = (item: Assignment) => (
-    <tr key={item.id} className="border-b border-gray-200 even:bg-slate-50 text-sm hover:bg-lamaPurpleLight">
-      <td className="flex items-center gap-4 p-4">{item.subject}</td>
-      <td>{item.class}</td>
+    <tr key={item.id} className="border-b border-gray-200 even:bg-slate-50 text-sm hover:bg-mahankalPurpleLight">
+      <td className="flex items-center gap-4 p-4 font-medium">{item.subject}</td>
+      <td>
+        <span className="bg-sky-100 text-sky-900 font-bold px-2 py-0.5 rounded text-xs">
+          Class {item.class}
+        </span>
+      </td>
       <td className="hidden md:table-cell">{item.teacher}</td>
       <td className="hidden md:table-cell">{item.dueDate}</td>
       <td>
@@ -72,14 +115,14 @@ const AssignmentListPage = async () => {
   return (
     <div className="bg-white p-4 rounded-md flex-1 m-4 mt-0">
       <div className="flex items-center justify-between">
-        <h1 className="hidden md:block text-lg font-semibold">All Assignments</h1>
+        <h1 className="hidden md:block text-lg font-semibold">Assignments</h1>
         <div className="flex flex-col md:flex-row items-center gap-4 w-full md:w-auto">
           <TableSearch />
           <div className="flex items-center gap-4 self-end">
-            <button className="w-8 h-8 flex items-center justify-center rounded-full bg-lamaYellow">
+            <button className="w-8 h-8 flex items-center justify-center rounded-full bg-mahankalYellow">
               <Image src="/filter.png" alt="" width={14} height={14} />
             </button>
-            <button className="w-8 h-8 flex items-center justify-center rounded-full bg-lamaYellow">
+            <button className="w-8 h-8 flex items-center justify-center rounded-full bg-mahankalYellow">
               <Image src="/sort.png" alt="" width={14} height={14} />
             </button>
             {(role === "admin" || role === "teacher") && <FormModal table="assignment" type="create" />}

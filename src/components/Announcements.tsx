@@ -1,7 +1,7 @@
 import connectToDB from "@/lib/db";
 import { Announcement, Event } from "@/lib/models";
 
-const bgColors = ["bg-lamaSkyLight", "bg-lamaPurpleLight", "bg-lamaYellowLight"];
+const bgColors = ["bg-mahankalSkyLight", "bg-mahankalPurpleLight", "bg-mahankalYellowLight"];
 
 const Announcements = async () => {
   await connectToDB();

@@ -4,7 +4,7 @@ import EventCalendar from "@/components/EventCalendar";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import connectToDB from "@/lib/db";
-import { Teacher, Student, Event as EventModel } from "@/lib/models";
+import { Teacher, Student, Event as EventModel, Attendance } from "@/lib/models";
 import Image from "next/image";
 import Link from "next/link";
 
@@ -35,7 +35,7 @@ const TeacherPage = async () => {
       {/* LEFT */}
       <div className="w-full xl:w-2/3 flex flex-col gap-4">
         {/* WELCOME */}
-        <div className="bg-lamaSky rounded-md p-4 flex items-center gap-4">
+        <div className="bg-mahankalSky rounded-md p-4 flex items-center gap-4">
           <Image src="/avatar.png" alt="" width={60} height={60} className="rounded-full" />
           <div>
             <h1 className="text-xl font-bold">Welcome, {teacher?.name || session?.user?.name || "Teacher"} 👋</h1>
@@ -61,11 +61,24 @@ const TeacherPage = async () => {
           </div>
         </div>
 
+        {/* QUICK ATTENDANCE CTA */}
+        <Link
+          href="/list/attendance"
+          className="flex items-center gap-4 bg-gradient-to-r from-sky-500 to-indigo-500 text-white rounded-xl p-4 hover:opacity-90 transition shadow-md"
+        >
+          <div className="text-3xl">📋</div>
+          <div>
+            <h3 className="font-extrabold text-lg">Take Class Attendance</h3>
+            <p className="text-xs opacity-90">Mark present / absent for your class students</p>
+          </div>
+          <span className="ml-auto text-xl font-bold">→</span>
+        </Link>
+
         {/* MY STUDENTS */}
         <div className="bg-white rounded-md p-4">
           <div className="flex justify-between items-center mb-3">
             <h2 className="text-lg font-semibold">My Students</h2>
-            <Link href="/list/students" className="text-xs text-lamaSky hover:underline">View All</Link>
+            <Link href="/list/students" className="text-xs text-mahankalSky hover:underline">View All</Link>
           </div>
           {students.length === 0 ? (
             <p className="text-gray-500 text-sm">No students assigned yet. Contact admin to assign classes.</p>
