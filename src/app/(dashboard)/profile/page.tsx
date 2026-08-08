@@ -8,6 +8,8 @@ import ProfileEditForm from "@/components/ProfileEditForm";
 import BigCalendar from "@/components/BigCalender";
 import Announcements from "@/components/Announcements";
 
+export const dynamic = "force-dynamic";
+
 export default async function ProfilePage() {
   const session = await getServerSession(authOptions);
 
@@ -42,11 +44,11 @@ export default async function ProfilePage() {
   }
 
   const plainId = userData._id.toString();
-  const name = userData.name || "Admin User";
-  const email = userData.email || "";
-  const phone = userData.phone || "N/A";
-  const photo = userData.photo || "/avatar.png";
-  const address = userData.address || "N/A";
+  const name = userData.name ?? (role === "admin" ? "Admin User" : "");
+  const email = userData.email ?? "";
+  const phone = userData.phone ?? "N/A";
+  const photo = userData.photo ?? "/avatar.png";
+  const address = userData.address ?? "N/A";
 
   // Role specific fields
   const studentClass = role === "student" ? (userData.class || "N/A") : null;
