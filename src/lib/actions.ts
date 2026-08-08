@@ -591,8 +591,12 @@ export async function updateUserProfile(id: string, role: string, data: { name?:
       await Admin.findByIdAndUpdate(id, update);
     }
     revalidatePath("/profile");
+    revalidatePath("/list");
     revalidatePath("/list/students");
     revalidatePath("/list/teachers");
+    revalidatePath("/list/parents");
+    revalidatePath("/list/students/[id]");
+    revalidatePath("/list/teachers/[id]");
     return { success: true };
   } catch (e: any) {
     return { success: false, error: e.message };
