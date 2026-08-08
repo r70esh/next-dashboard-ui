@@ -76,6 +76,7 @@ const SingleTeacherPage = async ({ params }: { params: { id: string } }) => {
                 role="teacher"
                 initialName={teacher.name}
                 initialPhone={teacher.phone}
+                initialAddress={teacher.address || ""}
               />
             </div>
           </div>

@@ -131,6 +131,7 @@ const SingleStudentPage = async ({ params }: { params: { id: string } }) => {
                   role="student"
                   initialName={student.name}
                   initialPhone={student.phone || ""}
+                  initialAddress={student.address || ""}
                 />
               )}
             </div>
