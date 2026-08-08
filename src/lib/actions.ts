@@ -8,6 +8,9 @@ import { revalidatePath } from "next/cache";
 // ── TEACHER ──────────────────────────────────────────────────────────────────
 export async function createTeacher(data: any) {
   try {
+    if (!data.name || !data.email || !data.password || !data.phone || !data.address) {
+      return { success: false, error: "Name, email, password, phone, and address are required." };
+    }
     await connectToDB();
     const hashed = await bcrypt.hash(data.password, 10);
     const count = await Teacher.countDocuments();
@@ -61,6 +64,9 @@ export async function deleteTeacher(id: string) {
 // ── STUDENT ──────────────────────────────────────────────────────────────────
 export async function createStudent(data: any) {
   try {
+    if (!data.name || !data.email || !data.password || !data.address) {
+      return { success: false, error: "Name, email, password, and address are required." };
+    }
     await connectToDB();
     const hashed = await bcrypt.hash(data.password, 10);
     // Use the pre-computed studentId (c311 format) if provided, otherwise generate one
@@ -116,6 +122,9 @@ export async function deleteStudent(id: string) {
 // ── PARENT ───────────────────────────────────────────────────────────────────
 export async function createParent(data: any) {
   try {
+    if (!data.name || !data.email || !data.password || !data.phone || !data.address) {
+      return { success: false, error: "Name, email, password, phone, and address are required." };
+    }
     await connectToDB();
     const hashed = await bcrypt.hash(data.password, 10);
     await Parent.create({
@@ -561,12 +570,16 @@ export async function updateLesson(id: string, data: any) {
 }
 
 // ── USER PROFILE & PASSWORD ──────────────────────────────────────────────────
-export async function updateUserProfile(id: string, role: string, data: { name?: string; phone?: string }) {
+export async function updateUserProfile(id: string, role: string, data: { name?: string; phone?: string; address?: string }) {
   try {
+    if (data.address !== undefined && !data.address.trim()) {
+      return { success: false, error: "Address is required." };
+    }
     await connectToDB();
     const update: any = {};
     if (data.name !== undefined) update.name = data.name;
     if (data.phone !== undefined) update.phone = data.phone;
+    if (data.address !== undefined) update.address = data.address;
 
     if (role === "teacher") {
       await Teacher.findByIdAndUpdate(id, update);
@@ -575,7 +588,6 @@ export async function updateUserProfile(id: string, role: string, data: { name?:
     } else if (role === "parent") {
       await Parent.findByIdAndUpdate(id, update);
     } else if (role === "admin") {
-      if (data.name) update.name = data.name;
       await Admin.findByIdAndUpdate(id, update);
     }
     revalidatePath("/profile");

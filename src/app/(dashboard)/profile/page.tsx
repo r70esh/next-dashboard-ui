@@ -115,8 +115,9 @@ export default async function ProfilePage() {
               <ProfileEditForm
                 id={plainId}
                 role={role}
-                initialName={name}
-                initialPhone={phone}
+                initialName={userData.name || ""}
+                initialPhone={userData.phone || ""}
+                initialAddress={userData.address || ""}
               />
             </div>
           </div>

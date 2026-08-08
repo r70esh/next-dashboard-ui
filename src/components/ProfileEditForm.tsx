@@ -9,16 +9,19 @@ export default function ProfileEditForm({
   role,
   initialName,
   initialPhone,
+  initialAddress,
 }: {
   id: string;
   role: string;
   initialName: string;
   initialPhone: string;
+  initialAddress: string;
 }) {
   const router = useRouter();
   const [isEditing, setIsEditing] = useState(false);
   const [name, setName] = useState(initialName);
   const [phone, setPhone] = useState(initialPhone);
+  const [address, setAddress] = useState(initialAddress);
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
 
@@ -27,7 +30,7 @@ export default function ProfileEditForm({
     setLoading(true);
     setMessage(null);
 
-    const res = await updateUserProfile(id, role, { name, phone });
+    const res = await updateUserProfile(id, role, { name, phone, address });
     setLoading(false);
 
     if (res.success) {
@@ -57,7 +60,7 @@ export default function ProfileEditForm({
           onClick={() => setIsEditing(true)}
           className="bg-sky-600 hover:bg-sky-700 text-white font-semibold text-xs px-4 py-2 rounded-lg transition w-fit"
         >
-          ✏️ Edit Name & Phone
+          ✏️ Edit Profile
         </button>
       </div>
     );
@@ -96,6 +99,16 @@ export default function ProfileEditForm({
           type="text"
           value={phone}
           onChange={(e) => setPhone(e.target.value)}
+          className="p-2 text-xs border border-slate-300 rounded-lg outline-none focus:ring-2 focus:ring-sky-500 bg-white"
+        />
+      </div>
+
+      <div className="flex flex-col gap-1">
+        <label className="text-xs font-semibold text-slate-600">Address</label>
+        <input
+          type="text"
+          value={address}
+          onChange={(e) => setAddress(e.target.value)}
           className="p-2 text-xs border border-slate-300 rounded-lg outline-none focus:ring-2 focus:ring-sky-500 bg-white"
           required
         />

@@ -44,8 +44,12 @@ const parentSchema = new mongoose.Schema(
 
 const adminSchema = new mongoose.Schema(
   {
+    name: { type: String },
     email: { type: String, required: true, unique: true },
     password: { type: String, required: true },
+    phone: { type: String },
+    address: { type: String },
+    photo: { type: String },
   },
   { timestamps: true }
 );
