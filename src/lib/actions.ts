@@ -1,9 +1,11 @@
 "use server";
 
 import connectToDB from "@/lib/db";
-import { Teacher, Student, Parent, Admin, Subject, Class, Lesson, Exam, Assignment, Result, Attendance, Event, Announcement } from "@/lib/models";
+import { Teacher, Student, Parent, Admin, Subject, Class, Lesson, Exam, Assignment, Result, Attendance, Event, Announcement, LessonPlan } from "@/lib/models";
 import bcrypt from "bcryptjs";
 import { revalidatePath } from "next/cache";
+import { getServerSession } from "next-auth";
+import { authOptions } from "@/lib/auth";
 
 // ── TEACHER ──────────────────────────────────────────────────────────────────
 export async function createTeacher(data: any) {
@@ -566,7 +568,174 @@ export async function updateLesson(id: string, data: any) {
     });
     revalidatePath("/list/lessons");
     return { success: true };
-  } catch (e: any) { return { success: false, error: e.message }; }
+  } catch (e: any) {
+    return { success: false, error: e.message };
+  }
+}
+
+// ── LESSON PLANS ────────────────────────────────────────────────────────────
+function sanitizePlan(data: any) {
+  return {
+    subject: String(data.subject || "").trim(),
+    grade: String(data.grade || "").trim(),
+    topic: String(data.topic || "").trim(),
+    date: String(data.date || ""),
+    duration: Number(data.duration) || 45,
+    students: Number(data.students) || 0,
+    objectives: Array.isArray(data.objectives) ? data.objectives.map((o: any) => String(o || "").trim()).filter(Boolean) : [],
+    resources: Array.isArray(data.resources) ? data.resources.map((r: any) => String(r || "").trim()).filter(Boolean) : [],
+    resourceLinks: Array.isArray(data.resourceLinks) ? data.resourceLinks.map((l: any) => String(l || "").trim()).filter(Boolean) : [],
+    activities: Array.isArray(data.activities)
+      ? data.activities.map((a: any) => ({
+          time: Number(a.time) || 0,
+          activity: String(a.activity || "").trim(),
+          method: String(a.method || "").trim(),
+        }))
+      : [],
+    assessments: Array.isArray(data.assessments)
+      ? data.assessments.map((a: any) => ({
+          method: String(a.method || "").trim(),
+          tool: String(a.tool || "").trim(),
+          criteria: String(a.criteria || "").trim(),
+        }))
+      : [],
+    reflection: String(data.reflection || "").trim(),
+    status: data.status === "published" ? "published" : "draft",
+    sharedWith: Array.isArray(data.sharedWith) ? data.sharedWith.map((s: any) => String(s || "").trim()).filter(Boolean) : [],
+  };
+}
+
+async function getSessionTeacher() {
+  const session = await getServerSession(authOptions);
+  if (!session?.user) return null;
+  const userId = (session.user as any).id;
+  const userEmail = session.user.email;
+  await connectToDB();
+  const teacher = await Teacher.findOne({ $or: [{ _id: userId }, { email: userEmail }] });
+  if (!teacher) return null;
+  return teacher;
+}
+
+export async function createLessonPlan(data: any) {
+  try {
+    const teacher = await getSessionTeacher();
+    if (!teacher) {
+      return { success: false, error: "Only teachers can create lesson plans." };
+    }
+    const plan = await LessonPlan.create({
+      ownerId: teacher._id.toString(),
+      ownerName: teacher.name,
+      ...sanitizePlan(data),
+      template: !!data.template,
+    });
+    revalidatePath("/lesson-plans");
+    return { success: true, id: plan._id.toString() };
+  } catch (e: any) {
+    return { success: false, error: e.message };
+  }
+}
+
+export async function updateLessonPlan(id: string, data: any) {
+  try {
+    const teacher = await getSessionTeacher();
+    if (!teacher) {
+      return { success: false, error: "Only teachers can edit lesson plans." };
+    }
+    const plan = await LessonPlan.findById(id);
+    if (!plan) return { success: false, error: "Lesson plan not found." };
+    if (plan.ownerId !== teacher._id.toString()) {
+      return { success: false, error: "You can only edit your own lesson plan." };
+    }
+    await LessonPlan.findByIdAndUpdate(id, sanitizePlan(data));
+    revalidatePath("/lesson-plans");
+    revalidatePath(`/lesson-plans/${id}`);
+    return { success: true };
+  } catch (e: any) {
+    return { success: false, error: e.message };
+  }
+}
+
+export async function deleteLessonPlan(id: string) {
+  try {
+    const teacher = await getSessionTeacher();
+    if (!teacher) {
+      return { success: false, error: "Only teachers can delete lesson plans." };
+    }
+    const plan = await LessonPlan.findById(id);
+    if (!plan) return { success: false, error: "Lesson plan not found." };
+    if (plan.ownerId !== teacher._id.toString()) {
+      return { success: false, error: "You can only delete your own lesson plan." };
+    }
+    await LessonPlan.findByIdAndDelete(id);
+    revalidatePath("/lesson-plans");
+    return { success: true };
+  } catch (e: any) {
+    return { success: false, error: e.message };
+  }
+}
+
+export async function duplicateLessonPlan(id: string) {
+  try {
+    const teacher = await getSessionTeacher();
+    if (!teacher) {
+      return { success: false, error: "Only teachers can duplicate lesson plans." };
+    }
+    const original = await LessonPlan.findById(id);
+    if (!original) return { success: false, error: "Lesson plan not found." };
+    const copy = await LessonPlan.create({
+      ownerId: teacher._id.toString(),
+      ownerName: teacher.name,
+      ...sanitizePlan(original.toObject()),
+      status: "draft",
+      sharedWith: [],
+      template: false,
+    });
+    revalidatePath("/lesson-plans");
+    return { success: true, id: copy._id.toString() };
+  } catch (e: any) {
+    return { success: false, error: e.message };
+  }
+}
+
+export async function shareLessonPlan(id: string, teacherName: string) {
+  try {
+    const teacher = await getSessionTeacher();
+    if (!teacher) return { success: false, error: "Only teachers can share lesson plans." };
+    const plan = await LessonPlan.findById(id);
+    if (!plan) return { success: false, error: "Lesson plan not found." };
+    if (plan.ownerId !== teacher._id.toString()) {
+      return { success: false, error: "You can only share your own lesson plan." };
+    }
+    const name = String(teacherName || "").trim();
+    if (!name) return { success: false, error: "Enter a teacher's name." };
+    const shared = Array.isArray(plan.sharedWith) ? plan.sharedWith : [];
+    if (!shared.includes(name)) shared.push(name);
+    plan.sharedWith = shared;
+    await plan.save();
+    revalidatePath("/lesson-plans");
+    return { success: true };
+  } catch (e: any) {
+    return { success: false, error: e.message };
+  }
+}
+
+export async function createLessonPlanFromTemplate(data: any) {
+  try {
+    const teacher = await getSessionTeacher();
+    if (!teacher) {
+      return { success: false, error: "Only teachers can create lesson plans." };
+    }
+    const plan = await LessonPlan.create({
+      ownerId: teacher._id.toString(),
+      ownerName: teacher.name,
+      ...sanitizePlan(data),
+      template: false,
+    });
+    revalidatePath("/lesson-plans");
+    return { success: true, id: plan._id.toString() };
+  } catch (e: any) {
+    return { success: false, error: e.message };
+  }
 }
 
 // ── USER PROFILE & PASSWORD ──────────────────────────────────────────────────

@@ -72,6 +72,35 @@ const lessonSchema = new mongoose.Schema({
   teacher: { type: String, required: true },
 }, { timestamps: true });
 
+const lessonPlanSchema = new mongoose.Schema(
+  {
+    ownerId: { type: String, required: true },
+    ownerName: { type: String, required: true },
+    subject: { type: String, default: "" },
+    grade: { type: String, default: "" },
+    topic: { type: String, default: "" },
+    date: { type: String, default: "" },
+    duration: { type: Number, default: 45 },
+    students: { type: Number, default: 0 },
+    objectives: { type: [String], default: [] },
+    resources: { type: [String], default: [] },
+    resourceLinks: { type: [String], default: [] },
+    activities: {
+      type: [{ time: Number, activity: String, method: String }],
+      default: [],
+    },
+    assessments: {
+      type: [{ method: String, tool: String, criteria: String }],
+      default: [],
+    },
+    reflection: { type: String, default: "" },
+    status: { type: String, enum: ["draft", "published"], default: "draft" },
+    sharedWith: { type: [String], default: [] },
+    template: { type: Boolean, default: false },
+  },
+  { timestamps: true }
+);
+
 const examSchema = new mongoose.Schema({
   subject: { type: String, required: true },
   class: { type: String, required: true },
@@ -127,6 +156,7 @@ export const Admin = mongoose.models.Admin || mongoose.model("Admin", adminSchem
 export const Subject = mongoose.models.Subject || mongoose.model("Subject", subjectSchema);
 export const Class = mongoose.models.Class || mongoose.model("Class", classSchema);
 export const Lesson = mongoose.models.Lesson || mongoose.model("Lesson", lessonSchema);
+export const LessonPlan = mongoose.models.LessonPlan || mongoose.model("LessonPlan", lessonPlanSchema);
 export const Exam = mongoose.models.Exam || mongoose.model("Exam", examSchema);
 export const Assignment = mongoose.models.Assignment || mongoose.model("Assignment", assignmentSchema);
 export const Result = mongoose.models.Result || mongoose.model("Result", resultSchema);
