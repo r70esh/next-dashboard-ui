@@ -133,3 +133,4 @@ export const Result = mongoose.models.Result || mongoose.model("Result", resultS
 export const Attendance = mongoose.models.Attendance || mongoose.model("Attendance", attendanceSchema);
 export const Event = mongoose.models.Event || mongoose.model("Event", eventSchema);
 export const Announcement = mongoose.models.Announcement || mongoose.model("Announcement", announcementSchema);
+

@@ -1,12 +1,13 @@
 import FormModal from "@/components/FormModal";
 import Pagination from "@/components/Pagination";
 import Table from "@/components/Table";
-import TableSearch from "@/components/TableSearch";
+import TableToolbar from "@/components/TableToolbar";
 import Image from "next/image";
 import connectToDB from "@/lib/db";
 import { Class as ClassModel } from "@/lib/models";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
+import { filterAndSort } from "@/lib/tableUtils";
 
 type ClassItem = {
   id: string;
@@ -24,13 +25,37 @@ const columns = [
   { header: "Actions", accessor: "action" },
 ];
 
-const ClassListPage = async () => {
+const ClassListPage = async ({
+  searchParams,
+}: {
+  searchParams: { search?: string; filter?: string; sort?: string };
+}) => {
   const session = await getServerSession(authOptions);
   const role = (session?.user as any)?.role || "admin";
 
   await connectToDB();
   const raw = await ClassModel.find({});
   const data: ClassItem[] = JSON.parse(JSON.stringify(raw)).map((c: any) => ({ ...c, id: c._id }));
+
+  const search = searchParams.search || "";
+  const filter = searchParams.filter || "";
+  const sort = searchParams.sort || "";
+  const sortDir = sort.endsWith(":desc") ? "desc" : "asc";
+  const sortField = sort.split(":")[0] || "";
+
+  const filteredData = filterAndSort(data, {
+    search,
+    filter,
+    searchFields: ["name", "supervisor"],
+    filterField: (c) => c.grade,
+    sortField: sortField ? (sortField as keyof ClassItem) : undefined,
+    sortDir,
+  });
+
+  const gradeOptions = Array.from(new Set(data.map((c) => String(c.grade)))).map((g) => ({
+    value: g,
+    label: `Grade ${g}`,
+  }));
 
   const renderRow = (item: ClassItem) => (
     <tr key={item.id} className="border-b border-gray-200 even:bg-slate-50 text-sm hover:bg-mahankalPurpleLight">
@@ -56,19 +81,23 @@ const ClassListPage = async () => {
       <div className="flex items-center justify-between">
         <h1 className="hidden md:block text-lg font-semibold">All Classes</h1>
         <div className="flex flex-col md:flex-row items-center gap-4 w-full md:w-auto">
-          <TableSearch />
+          <TableToolbar
+            searchPlaceholder="Search classes..."
+            filterOptions={gradeOptions}
+            filterPlaceholder="Grade"
+            sortOptions={[
+              { value: "name:asc", label: "Name (A-Z)" },
+              { value: "grade:asc", label: "Grade (Low-High)" },
+              { value: "grade:desc", label: "Grade (High-Low)" },
+              { value: "capacity:asc", label: "Capacity (Low-High)" },
+            ]}
+          />
           <div className="flex items-center gap-4 self-end">
-            <button className="w-8 h-8 flex items-center justify-center rounded-full bg-mahankalYellow">
-              <Image src="/filter.png" alt="" width={14} height={14} />
-            </button>
-            <button className="w-8 h-8 flex items-center justify-center rounded-full bg-mahankalYellow">
-              <Image src="/sort.png" alt="" width={14} height={14} />
-            </button>
             {role === "admin" && <FormModal table="class" type="create" />}
           </div>
         </div>
       </div>
-      <Table columns={columns} renderRow={renderRow} data={data} />
+      <Table columns={columns} renderRow={renderRow} data={filteredData} />
       <Pagination />
     </div>
   );

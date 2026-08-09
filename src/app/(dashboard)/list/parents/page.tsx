@@ -1,11 +1,12 @@
 import FormModal from "@/components/FormModal";
 import Pagination from "@/components/Pagination";
 import Table from "@/components/Table";
-import TableSearch from "@/components/TableSearch";
+import TableToolbar from "@/components/TableToolbar";
 import { role } from "@/lib/data";
 import Image from "next/image";
 import connectToDB from "@/lib/db";
 import { Parent as ParentModel } from "@/lib/models";
+import { filterAndSort } from "@/lib/tableUtils";
 
 type Parent = {
   id: string;
@@ -42,13 +43,36 @@ const columns = [
   },
 ];
 
-const ParentListPage = async () => {
+const ParentListPage = async ({
+  searchParams,
+}: {
+  searchParams: { search?: string; filter?: string; sort?: string };
+}) => {
   await connectToDB();
   const rawParents = await ParentModel.find({});
   const parentsData = JSON.parse(JSON.stringify(rawParents)).map((p: any) => ({
     ...p,
     id: p._id,
   }));
+
+  const search = searchParams.search || "";
+  const filter = searchParams.filter || "";
+  const sort = searchParams.sort || "";
+  const sortDir = sort.endsWith(":desc") ? "desc" : "asc";
+  const sortField = sort.split(":")[0] || "";
+
+  const filteredData = filterAndSort(parentsData, {
+    search,
+    filter,
+    searchFields: ["name", "email"],
+    filterField: (p) => p.students || [],
+    sortField: sortField ? (sortField as keyof typeof parentsData[number]) : undefined,
+    sortDir,
+  });
+
+  const studentOptions = Array.from(
+    new Set(parentsData.flatMap((p: any) => p.students || []))
+  ).map((s) => ({ value: String(s), label: String(s) }));
 
   const renderRow = (item: Parent) => (
     <tr
@@ -83,14 +107,16 @@ const ParentListPage = async () => {
       <div className="flex items-center justify-between">
         <h1 className="hidden md:block text-lg font-semibold">All Parents</h1>
         <div className="flex flex-col md:flex-row items-center gap-4 w-full md:w-auto">
-          <TableSearch />
+          <TableToolbar
+            searchPlaceholder="Search parents..."
+            filterOptions={studentOptions}
+            filterPlaceholder="Child"
+            sortOptions={[
+              { value: "name:asc", label: "Name (A-Z)" },
+              { value: "name:desc", label: "Name (Z-A)" },
+            ]}
+          />
           <div className="flex items-center gap-4 self-end">
-            <button className="w-8 h-8 flex items-center justify-center rounded-full bg-mahankalYellow">
-              <Image src="/filter.png" alt="" width={14} height={14} />
-            </button>
-            <button className="w-8 h-8 flex items-center justify-center rounded-full bg-mahankalYellow">
-              <Image src="/sort.png" alt="" width={14} height={14} />
-            </button>
             {role === "admin" && (
               <FormModal table="parent" type="create"/>
             )}
@@ -98,7 +124,7 @@ const ParentListPage = async () => {
         </div>
       </div>
       {/* LIST */}
-      <Table columns={columns} renderRow={renderRow} data={parentsData} />
+      <Table columns={columns} renderRow={renderRow} data={filteredData} />
       {/* PAGINATION */}
       <Pagination />
     </div>

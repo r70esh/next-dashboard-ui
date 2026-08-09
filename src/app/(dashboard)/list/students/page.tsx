@@ -1,12 +1,13 @@
 import FormModal from "@/components/FormModal";
 import Pagination from "@/components/Pagination";
 import Table from "@/components/Table";
-import TableSearch from "@/components/TableSearch";
+import TableToolbar from "@/components/TableToolbar";
 import { role } from "@/lib/data";
 import Image from "next/image";
 import Link from "next/link";
 import connectToDB from "@/lib/db";
 import { Student as StudentModel } from "@/lib/models";
+import { filterAndSort } from "@/lib/tableUtils";
 
 type Student = {
   id: string;
@@ -51,13 +52,36 @@ const columns = [
   },
 ];
 
-const StudentListPage = async () => {
+const StudentListPage = async ({
+  searchParams,
+}: {
+  searchParams: { search?: string; filter?: string; sort?: string };
+}) => {
   await connectToDB();
   const rawStudents = await StudentModel.find({});
   const studentsData = JSON.parse(JSON.stringify(rawStudents)).map((s: any) => ({
     ...s,
     id: s._id,
   }));
+
+  const search = searchParams.search || "";
+  const filter = searchParams.filter || "";
+  const sort = searchParams.sort || "";
+  const sortDir = sort.endsWith(":desc") ? "desc" : "asc";
+  const sortField = sort.split(":")[0] || "";
+
+  const filteredData = filterAndSort(studentsData, {
+    search,
+    filter,
+    searchFields: ["name", "studentId", "class"],
+    filterField: (s) => s.grade,
+    sortField: sortField ? (sortField as keyof typeof studentsData[number]) : undefined,
+    sortDir,
+  });
+
+  const gradeOptions = Array.from(
+    new Set(studentsData.map((s: any) => String(s.grade)))
+  ).map((g) => ({ value: g, label: `Grade ${g}` }));
 
   const renderRow = (item: Student) => (
     <tr
@@ -102,14 +126,18 @@ const StudentListPage = async () => {
       <div className="flex items-center justify-between">
         <h1 className="hidden md:block text-lg font-semibold">All Students</h1>
         <div className="flex flex-col md:flex-row items-center gap-4 w-full md:w-auto">
-          <TableSearch />
+          <TableToolbar
+            searchPlaceholder="Search students..."
+            filterOptions={gradeOptions}
+            filterPlaceholder="Grade"
+            sortOptions={[
+              { value: "name:asc", label: "Name (A-Z)" },
+              { value: "name:desc", label: "Name (Z-A)" },
+              { value: "grade:asc", label: "Grade (Low-High)" },
+              { value: "grade:desc", label: "Grade (High-Low)" },
+            ]}
+          />
           <div className="flex items-center gap-4 self-end">
-            <button className="w-8 h-8 flex items-center justify-center rounded-full bg-mahankalYellow">
-              <Image src="/filter.png" alt="" width={14} height={14} />
-            </button>
-            <button className="w-8 h-8 flex items-center justify-center rounded-full bg-mahankalYellow">
-              <Image src="/sort.png" alt="" width={14} height={14} />
-            </button>
             {role === "admin" && (
               <FormModal table="student" type="create"/>
             )}
@@ -117,7 +145,7 @@ const StudentListPage = async () => {
         </div>
       </div>
       {/* LIST */}
-      <Table columns={columns} renderRow={renderRow} data={studentsData} />
+      <Table columns={columns} renderRow={renderRow} data={filteredData} />
       {/* PAGINATION */}
       <Pagination />
     </div>

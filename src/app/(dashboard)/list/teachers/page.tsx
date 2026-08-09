@@ -1,12 +1,13 @@
 import FormModal from "@/components/FormModal";
 import Pagination from "@/components/Pagination";
 import Table from "@/components/Table";
-import TableSearch from "@/components/TableSearch";
+import TableToolbar from "@/components/TableToolbar";
 import { role } from "@/lib/data";
 import Image from "next/image";
 import Link from "next/link";
 import connectToDB from "@/lib/db";
 import { Teacher as TeacherModel } from "@/lib/models";
+import { filterAndSort } from "@/lib/tableUtils";
 
 type Teacher = {
   id: string;
@@ -56,13 +57,36 @@ const columns = [
   },
 ];
 
-const TeacherListPage = async () => {
+const TeacherListPage = async ({
+  searchParams,
+}: {
+  searchParams: { search?: string; filter?: string; sort?: string };
+}) => {
   await connectToDB();
   const rawTeachers = await TeacherModel.find({});
   const teachersData = JSON.parse(JSON.stringify(rawTeachers)).map((t: any) => ({
     ...t,
     id: t._id,
   }));
+
+  const search = searchParams.search || "";
+  const filter = searchParams.filter || "";
+  const sort = searchParams.sort || "";
+  const sortDir = sort.endsWith(":desc") ? "desc" : "asc";
+  const sortField = sort.split(":")[0] || "";
+
+  const filteredData = filterAndSort(teachersData, {
+    search,
+    filter,
+    searchFields: ["name", "email", "teacherId"],
+    filterField: (t) => t.subjects || [],
+    sortField: sortField ? (sortField as keyof typeof teachersData[number]) : undefined,
+    sortDir,
+  });
+
+  const subjectOptions = Array.from(
+    new Set(teachersData.flatMap((t: any) => t.subjects || []))
+  ).map((s) => ({ value: String(s), label: String(s) }));
 
   const renderRow = (item: Teacher) => (
     <tr
@@ -108,14 +132,17 @@ const TeacherListPage = async () => {
       <div className="flex items-center justify-between">
         <h1 className="hidden md:block text-lg font-semibold">All Teachers</h1>
         <div className="flex flex-col md:flex-row items-center gap-4 w-full md:w-auto">
-          <TableSearch />
+          <TableToolbar
+            searchPlaceholder="Search teachers..."
+            filterOptions={subjectOptions}
+            filterPlaceholder="Subject"
+            sortOptions={[
+              { value: "name:asc", label: "Name (A-Z)" },
+              { value: "name:desc", label: "Name (Z-A)" },
+              { value: "teacherId:asc", label: "Teacher ID (A-Z)" },
+            ]}
+          />
           <div className="flex items-center gap-4 self-end">
-            <button className="w-8 h-8 flex items-center justify-center rounded-full bg-mahankalYellow">
-              <Image src="/filter.png" alt="" width={14} height={14} />
-            </button>
-            <button className="w-8 h-8 flex items-center justify-center rounded-full bg-mahankalYellow">
-              <Image src="/sort.png" alt="" width={14} height={14} />
-            </button>
             {role === "admin" && (
               <FormModal table="teacher" type="create"/>
             )}
@@ -123,7 +150,7 @@ const TeacherListPage = async () => {
         </div>
       </div>
       {/* LIST */}
-      <Table columns={columns} renderRow={renderRow} data={teachersData} />
+      <Table columns={columns} renderRow={renderRow} data={filteredData} />
       {/* PAGINATION */}
       <Pagination />
     </div>
