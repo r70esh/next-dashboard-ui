@@ -3,7 +3,7 @@
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { createExam, updateExam } from "@/lib/actions";
+import { createExam, updateExam, getTeacherScope } from "@/lib/actions";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { useSession } from "next-auth/react";
@@ -33,6 +33,17 @@ const ExamForm = ({ type, data }: { type: "create" | "update"; data?: any }) => 
   const { data: session } = useSession();
   const isTeacher = (session?.user as any)?.role === "teacher";
   const creatorName = session?.user?.name || "";
+  const [scopeSubjects, setScopeSubjects] = useState<string[]>([]);
+  const [scopeClasses, setScopeClasses] = useState<string[]>([]);
+
+  // Load the teacher's assigned subjects/classes to restrict the form.
+  useEffect(() => {
+    if (!isTeacher) return;
+    getTeacherScope().then((res: any) => {
+      setScopeSubjects((res?.subjects || []).map(String));
+      setScopeClasses((res?.classes || []).map(String));
+    });
+  }, [isTeacher]);
 
   // Normalize existing class value to plain number string
   const defaultClass = (() => {
@@ -57,6 +68,17 @@ const ExamForm = ({ type, data }: { type: "create" | "update"; data?: any }) => 
       setValue("teacher", creatorName, { shouldValidate: true });
     }
   }, [isTeacher, creatorName, setValue]);
+
+  // Auto-select a value when a teacher has exactly one allowed option.
+  useEffect(() => {
+    if (!isTeacher) return;
+    if (scopeSubjects.length > 0 && !(scopeSubjects.length > 1)) {
+      setValue("subject", scopeSubjects[0], { shouldValidate: true });
+    }
+    if (scopeClasses.length > 0 && !(scopeClasses.length > 1)) {
+      setValue("class", scopeClasses[0] as any, { shouldValidate: true });
+    }
+  }, [isTeacher, scopeSubjects, scopeClasses, setValue]);
 
   const onSubmit = handleSubmit(async (formData) => {
     setLoading(true);
@@ -88,11 +110,20 @@ const ExamForm = ({ type, data }: { type: "create" | "update"; data?: any }) => 
 
       <div className="flex flex-col gap-1">
         <label className={labelCls}>Subject Name</label>
-        <input
-          className={inputCls}
-          placeholder="e.g. Mathematics"
-          {...register("subject")}
-        />
+        {isTeacher && scopeSubjects.length > 0 ? (
+          <select className={inputCls} {...register("subject")}>
+            <option value="">Select subject</option>
+            {scopeSubjects.map((s) => (
+              <option key={s} value={s}>{s}</option>
+            ))}
+          </select>
+        ) : (
+          <input
+            className={inputCls}
+            placeholder="e.g. Mathematics"
+            {...register("subject")}
+          />
+        )}
         {errors.subject && <p className="text-red-400 text-xs">{errors.subject.message}</p>}
       </div>
 
@@ -100,7 +131,7 @@ const ExamForm = ({ type, data }: { type: "create" | "update"; data?: any }) => 
         <label className={labelCls}>Target Class</label>
         <select className={inputCls} {...register("class")}>
           <option value="">Select class</option>
-          {CLASS_OPTIONS.map((c) => (
+          {(isTeacher && scopeClasses.length > 0 ? scopeClasses : CLASS_OPTIONS).map((c) => (
             <option key={c} value={c}>Class {c}</option>
           ))}
         </select>

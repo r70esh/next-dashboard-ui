@@ -57,6 +57,7 @@ const adminSchema = new mongoose.Schema(
 const subjectSchema = new mongoose.Schema({
   name: { type: String, required: true, unique: true },
   teachers: { type: [String] },
+  classes: { type: [String] },
 }, { timestamps: true });
 
 const classSchema = new mongoose.Schema({

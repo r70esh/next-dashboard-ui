@@ -13,11 +13,13 @@ type Subject = {
   id: string;
   name: string;
   teachers: string[];
+  classes: string[];
 };
 
 const columns = [
   { header: "Subject Name", accessor: "name" },
   { header: "Teachers", accessor: "teachers", className: "hidden md:table-cell" },
+  { header: "Classes", accessor: "classes", className: "hidden lg:table-cell" },
   { header: "Actions", accessor: "action" },
 ];
 
@@ -42,7 +44,7 @@ const SubjectListPage = async ({
   const filteredData = filterAndSort(data, {
     search,
     filter,
-    searchFields: ["name", "teachers"],
+    searchFields: ["name", "teachers", "classes"],
     filterField: (s) => s.teachers || [],
     sortField: sortField || undefined,
     sortDir,
@@ -56,6 +58,11 @@ const SubjectListPage = async ({
     <tr key={item.id} className="border-b border-gray-200 even:bg-slate-50 text-sm hover:bg-mahankalPurpleLight">
       <td className="flex items-center gap-4 p-4">{item.name}</td>
       <td className="hidden md:table-cell">{item.teachers?.join(", ")}</td>
+      <td className="hidden lg:table-cell">
+        {(item.classes || []).length > 0
+          ? item.classes.map((c) => `Class ${c}`).join(", ")
+          : <span className="text-gray-400">All</span>}
+      </td>
       <td>
         <div className="flex items-center gap-2">
           {role === "admin" && (

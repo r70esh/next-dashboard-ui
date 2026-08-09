@@ -4,7 +4,7 @@ import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
 import InputField from "../InputField";
-import { createLesson, updateLesson } from "@/lib/actions";
+import { createLesson, updateLesson, getTeacherScope } from "@/lib/actions";
 import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { useSession } from "next-auth/react";
@@ -28,6 +28,17 @@ const LessonForm = ({ type, data }: { type: "create" | "update"; data?: any }) =
   const { data: session } = useSession();
   const isTeacher = (session?.user as any)?.role === "teacher";
   const creatorName = session?.user?.name || "";
+  const [scopeSubjects, setScopeSubjects] = useState<string[]>([]);
+  const [scopeClasses, setScopeClasses] = useState<string[]>([]);
+
+  // Load the teacher's assigned subjects/classes to restrict the form.
+  useEffect(() => {
+    if (!isTeacher) return;
+    getTeacherScope().then((res: any) => {
+      setScopeSubjects((res?.subjects || []).map(String));
+      setScopeClasses((res?.classes || []).map(String));
+    });
+  }, [isTeacher]);
 
   const { register, handleSubmit, setValue, formState: { errors } } = useForm<Inputs>({
     resolver: zodResolver(schema),
@@ -44,6 +55,17 @@ const LessonForm = ({ type, data }: { type: "create" | "update"; data?: any }) =
       setValue("teacher", creatorName, { shouldValidate: true });
     }
   }, [isTeacher, creatorName, setValue]);
+
+  // Auto-select a value when a teacher has exactly one allowed option.
+  useEffect(() => {
+    if (!isTeacher) return;
+    if (scopeSubjects.length > 0 && !(scopeSubjects.length > 1)) {
+      setValue("subject", scopeSubjects[0], { shouldValidate: true });
+    }
+    if (scopeClasses.length > 0 && !(scopeClasses.length > 1)) {
+      setValue("class", scopeClasses[0], { shouldValidate: true });
+    }
+  }, [isTeacher, scopeSubjects, scopeClasses, setValue]);
 
   const onSubmit = handleSubmit(async (formData) => {
     setLoading(true);
@@ -69,8 +91,40 @@ const LessonForm = ({ type, data }: { type: "create" | "update"; data?: any }) =
       <h1 className="text-xl font-semibold">{type === "create" ? "Create Lesson" : "Update Lesson"}</h1>
       {error && <p className="text-red-500 text-sm bg-red-50 p-2 rounded">{error}</p>}
       {success && <p className="text-green-600 text-sm bg-green-50 p-2 rounded">{success}</p>}
-      <InputField label="Subject" name="subject" register={register} error={errors.subject} />
-      <InputField label="Class (1-12)" name="class" register={register} error={errors.class} />
+      <div className="flex flex-col gap-2">
+        <label className="text-xs text-gray-500">Subject</label>
+        {isTeacher && scopeSubjects.length > 0 ? (
+          <select className="ring-[1.5px] ring-gray-300 p-2 rounded-md text-sm w-full" {...register("subject")}>
+            <option value="">Select subject</option>
+            {scopeSubjects.map((s) => (
+              <option key={s} value={s}>{s}</option>
+            ))}
+          </select>
+        ) : (
+          <input
+            className="ring-[1.5px] ring-gray-300 p-2 rounded-md text-sm w-full"
+            placeholder="e.g. Mathematics"
+            {...register("subject")}
+          />
+        )}
+      </div>
+      <div className="flex flex-col gap-2">
+        <label className="text-xs text-gray-500">Class (1-12)</label>
+        {isTeacher && scopeClasses.length > 0 ? (
+          <select className="ring-[1.5px] ring-gray-300 p-2 rounded-md text-sm w-full" {...register("class")}>
+            <option value="">Select class</option>
+            {scopeClasses.map((c) => (
+              <option key={c} value={c}>Class {c}</option>
+            ))}
+          </select>
+        ) : (
+          <input
+            className="ring-[1.5px] ring-gray-300 p-2 rounded-md text-sm w-full"
+            placeholder="e.g. 8"
+            {...register("class")}
+          />
+        )}
+      </div>
       {isTeacher ? (
         <div className="flex flex-col gap-2">
           <label className="text-xs text-gray-500">Teacher (auto)</label>

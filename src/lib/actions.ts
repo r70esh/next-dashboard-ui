@@ -10,6 +10,12 @@ import { authOptions } from "@/lib/auth";
 // ── TEACHER ──────────────────────────────────────────────────────────────────
 // `selfRegister` = account created from the public /register page.
 // Such teachers must be approved by an admin before they can log in.
+const toArray = (v: any) => {
+  if (Array.isArray(v)) return v.map(String).map((s) => s.trim()).filter(Boolean);
+  if (typeof v === "string") return v.split(",").map((s) => s.trim()).filter(Boolean);
+  return [];
+};
+
 export async function createTeacher(data: any, selfRegister = false) {
   try {
     if (!data.name || !data.email || !data.password || !data.phone || !data.address) {
@@ -24,8 +30,8 @@ export async function createTeacher(data: any, selfRegister = false) {
       password: hashed,
       phone: data.phone,
       address: data.address,
-      subjects: data.subjects ? data.subjects.split(",").map((s: string) => s.trim()) : [],
-      classes: [],
+      subjects: toArray(data.subjects),
+      classes: toArray(data.classes),
       status: selfRegister ? "pending" : "approved",
     });
     revalidatePath("/list/teachers");
@@ -77,7 +83,8 @@ export async function updateTeacher(id: string, data: any) {
       email: data.email,
       phone: data.phone,
       address: data.address,
-      subjects: data.subjects ? data.subjects.split(",").map((s: string) => s.trim()) : [],
+      subjects: toArray(data.subjects),
+      classes: toArray(data.classes),
     };
     if (data.password) update.password = await bcrypt.hash(data.password, 10);
     await Teacher.findByIdAndUpdate(id, update);
@@ -212,7 +219,7 @@ export async function deleteParent(id: string) {
 export async function createSubject(data: any) {
   try {
     await connectToDB();
-    await Subject.create({ name: data.name, teachers: data.teachers ? data.teachers.split(",").map((s:string)=>s.trim()) : [] });
+    await Subject.create({ name: data.name, teachers: toArray(data.teachers), classes: toArray(data.classes) });
     revalidatePath("/list/subjects");
     return { success: true };
   } catch (e: any) { return { success: false, error: e.message }; }
@@ -223,7 +230,8 @@ export async function updateSubject(id: string, data: any) {
     await connectToDB();
     await Subject.findByIdAndUpdate(id, {
       name: data.name,
-      teachers: data.teachers ? data.teachers.split(",").map((s:string)=>s.trim()) : [],
+      teachers: toArray(data.teachers),
+      classes: toArray(data.classes),
     });
     revalidatePath("/list/subjects");
     return { success: true };
@@ -237,6 +245,41 @@ export async function deleteSubject(id: string) {
     revalidatePath("/list/subjects");
     return { success: true };
   } catch (e: any) { return { success: false, error: e.message }; }
+}
+
+export async function getSubjectOptions() {
+  try {
+    await connectToDB();
+    const subjects = await Subject.find({}).select("name").sort({ name: 1 });
+    return { success: true, subjects: JSON.parse(JSON.stringify(subjects)) };
+  } catch (e: any) {
+    return { success: false, error: e.message, subjects: [] };
+  }
+}
+
+// Returns the classes + subjects assigned to the logged-in teacher so their
+// create forms can be restricted to only those. Empty arrays = unrestricted
+// (existing teachers that predate this feature keep full access).
+export async function getTeacherScope() {
+  try {
+    const session = await getServerSession(authOptions);
+    const role = (session?.user as any)?.role;
+    if (role !== "teacher") {
+      return { success: true, subjects: [], classes: [] };
+    }
+    await connectToDB();
+    const teacher = await Teacher.findOne({
+      $or: [{ _id: (session?.user as any)?.id }, { email: session?.user?.email }],
+    });
+    if (!teacher) return { success: true, subjects: [], classes: [] };
+    return {
+      success: true,
+      subjects: (teacher.subjects || []).filter(Boolean),
+      classes: (teacher.classes || []).filter(Boolean),
+    };
+  } catch (e: any) {
+    return { success: false, error: e.message, subjects: [], classes: [] };
+  }
 }
 
 // ── CLASS ─────────────────────────────────────────────────────────────────────
@@ -283,22 +326,40 @@ export async function getTeacherOptions() {
   }
 }
 
-// When a teacher (logged in) creates/updates a record, the teacher name is
-// always taken from the session so it can never be typed or forged.
-async function lockTeacherFromSession(data: any) {
+// When a teacher (logged in) creates/updates a record:
+//  - the teacher name is always taken from the session (cannot be typed/forged),
+//  - subject/class are restricted to what the teacher was assigned.
+// Returns null when allowed, or an error object to short-circuit with.
+async function enforceTeacherScope(data: any) {
   const session = await getServerSession(authOptions);
   const role = (session?.user as any)?.role;
-  if (role === "teacher" && session?.user?.name) {
-    data.teacher = session.user.name;
+  if (role !== "teacher") return null;
+
+  const teacher = await Teacher.findOne({
+    $or: [{ _id: (session?.user as any)?.id }, { email: session?.user?.email }],
+  });
+  if (!teacher) return { error: "Teacher account not found." };
+
+  if (session?.user?.name) data.teacher = session.user.name;
+
+  const allowedSubjects = (teacher.subjects || []).map(String).filter(Boolean);
+  const allowedClasses = (teacher.classes || []).map(String).filter(Boolean);
+
+  if (allowedSubjects.length > 0 && !allowedSubjects.includes(String(data.subject))) {
+    return { error: `You can only use your assigned subjects: ${allowedSubjects.join(", ")}.` };
   }
-  return data;
+  if (allowedClasses.length > 0 && !allowedClasses.includes(String(data.class))) {
+    return { error: `You can only select your assigned classes: ${allowedClasses.join(", ")}.` };
+  }
+  return null;
 }
 
 // ── EXAM ──────────────────────────────────────────────────────────────────────
 export async function createExam(data: any) {
   try {
     await connectToDB();
-    await lockTeacherFromSession(data);
+    const scopeError = await enforceTeacherScope(data);
+    if (scopeError) return { success: false, error: scopeError.error };
     await Exam.create({ subject: data.subject, class: data.class, teacher: data.teacher, date: new Date(data.date) });
     revalidatePath("/list/exams");
     return { success: true };
@@ -316,7 +377,8 @@ export async function deleteExam(id: string) {
 export async function updateExam(id: string, data: any) {
   try {
     await connectToDB();
-    await lockTeacherFromSession(data);
+    const scopeError = await enforceTeacherScope(data);
+    if (scopeError) return { success: false, error: scopeError.error };
     await Exam.findByIdAndUpdate(id, {
       subject: data.subject,
       class: data.class,
@@ -333,7 +395,8 @@ export async function updateExam(id: string, data: any) {
 export async function createAssignment(data: any) {
   try {
     await connectToDB();
-    await lockTeacherFromSession(data);
+    const scopeError = await enforceTeacherScope(data);
+    if (scopeError) return { success: false, error: scopeError.error };
     await Assignment.create({ subject: data.subject, class: data.class, teacher: data.teacher, dueDate: new Date(data.dueDate) });
     revalidatePath("/list/assignments");
     return { success: true };
@@ -342,7 +405,8 @@ export async function createAssignment(data: any) {
 export async function updateAssignment(id: string, data: any) {
   try {
     await connectToDB();
-    await lockTeacherFromSession(data);
+    const scopeError = await enforceTeacherScope(data);
+    if (scopeError) return { success: false, error: scopeError.error };
     await Assignment.findByIdAndUpdate(id, {
       subject: data.subject,
       class: data.class,
@@ -366,7 +430,8 @@ export async function deleteAssignment(id: string) {
 export async function createResult(data: any) {
   try {
     await connectToDB();
-    await lockTeacherFromSession(data);
+    const scopeError = await enforceTeacherScope(data);
+    if (scopeError) return { success: false, error: scopeError.error };
     await Result.create({
       subject: data.subject,
       class: data.class,
@@ -393,7 +458,8 @@ export async function deleteResult(id: string) {
 export async function updateResult(id: string, data: any) {
   try {
     await connectToDB();
-    await lockTeacherFromSession(data);
+    const scopeError = await enforceTeacherScope(data);
+    if (scopeError) return { success: false, error: scopeError.error };
     await Result.findByIdAndUpdate(id, {
       subject: data.subject,
       class: data.class,
@@ -607,7 +673,8 @@ export async function deleteAnnouncement(id: string) {
 export async function createLesson(data: any) {
   try {
     await connectToDB();
-    await lockTeacherFromSession(data);
+    const scopeError = await enforceTeacherScope(data);
+    if (scopeError) return { success: false, error: scopeError.error };
     await Lesson.create({ subject: data.subject, class: data.class, teacher: data.teacher });
     revalidatePath("/list/lessons");
     return { success: true };
@@ -624,7 +691,8 @@ export async function deleteLesson(id: string) {
 export async function updateLesson(id: string, data: any) {
   try {
     await connectToDB();
-    await lockTeacherFromSession(data);
+    const scopeError = await enforceTeacherScope(data);
+    if (scopeError) return { success: false, error: scopeError.error };
     await Lesson.findByIdAndUpdate(id, {
       subject: data.subject,
       class: data.class,
@@ -680,12 +748,28 @@ async function getSessionTeacher() {
   return teacher;
 }
 
+// Returns an error string if the teacher's subject/class are outside their
+// assigned scope (empty assigned list = unrestricted). Null = allowed.
+function checkTeacherScope(teacher: any, subject: any, className: any) {
+  const allowedSubjects = (teacher.subjects || []).map(String).filter(Boolean);
+  const allowedClasses = (teacher.classes || []).map(String).filter(Boolean);
+  if (allowedSubjects.length > 0 && !allowedSubjects.includes(String(subject))) {
+    return `You can only use your assigned subjects: ${allowedSubjects.join(", ")}.`;
+  }
+  if (allowedClasses.length > 0 && !allowedClasses.includes(String(className))) {
+    return `You can only select your assigned classes: ${allowedClasses.join(", ")}.`;
+  }
+  return null;
+}
+
 export async function createLessonPlan(data: any) {
   try {
     const teacher = await getSessionTeacher();
     if (!teacher) {
       return { success: false, error: "Only teachers can create lesson plans." };
     }
+    const scopeError = checkTeacherScope(teacher, data.subject, data.class);
+    if (scopeError) return { success: false, error: scopeError };
     const plan = await LessonPlan.create({
       ownerId: teacher._id.toString(),
       ownerName: teacher.name,
@@ -705,6 +789,8 @@ export async function updateLessonPlan(id: string, data: any) {
     if (!teacher) {
       return { success: false, error: "Only teachers can edit lesson plans." };
     }
+    const scopeError = checkTeacherScope(teacher, data.subject, data.class);
+    if (scopeError) return { success: false, error: scopeError };
     const plan = await LessonPlan.findById(id);
     if (!plan) return { success: false, error: "Lesson plan not found." };
     if (plan.ownerId !== teacher._id.toString()) {
@@ -789,6 +875,8 @@ export async function createLessonPlanFromTemplate(data: any) {
     if (!teacher) {
       return { success: false, error: "Only teachers can create lesson plans." };
     }
+    const scopeError = checkTeacherScope(teacher, data.subject, data.class);
+    if (scopeError) return { success: false, error: scopeError };
     const plan = await LessonPlan.create({
       ownerId: teacher._id.toString(),
       ownerName: teacher.name,
