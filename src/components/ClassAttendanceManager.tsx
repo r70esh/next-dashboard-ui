@@ -13,13 +13,16 @@ type StudentAttendanceItem = {
   status: "present" | "absent" | "late";
 };
 
+const PERIOD_OPTIONS = Array.from({ length: 8 }, (_, i) => String(i + 1));
+
 export default function ClassAttendanceManager({
   availableClasses = ["1","2","3","4","5","6","7","8","9","10","11","12"],
 }: {
   availableClasses?: string[];
 }) {
   const router = useRouter();
-  const [selectedClass, setSelectedClass] = useState<string>(availableClasses[0] || "1A");
+  const [selectedClass, setSelectedClass] = useState<string>(availableClasses[0] || "1");
+  const [selectedPeriod, setSelectedPeriod] = useState<string>("1");
   const [selectedDate, setSelectedDate] = useState<string>(
     new Date().toISOString().slice(0, 10)
   );
@@ -32,14 +35,14 @@ export default function ClassAttendanceManager({
     if (!selectedClass) return;
     setLoading(true);
     setMessage(null);
-    const res = await getClassStudentsAndAttendance(selectedClass, selectedDate);
+    const res = await getClassStudentsAndAttendance(selectedClass, selectedDate, selectedPeriod);
     setLoading(false);
     if (res.success) {
       setStudents(res.students);
     } else {
       setMessage({ type: "error", text: res.error || "Failed to load class students." });
     }
-  }, [selectedClass, selectedDate]);
+  }, [selectedClass, selectedDate, selectedPeriod]);
 
   useEffect(() => {
     fetchClassStudents();
@@ -69,13 +72,13 @@ export default function ClassAttendanceManager({
       status: s.status,
     }));
 
-    const res = await bulkSaveAttendance(selectedClass, selectedDate, payload);
+    const res = await bulkSaveAttendance(selectedClass, selectedDate, selectedPeriod, payload);
     setSaving(false);
 
     if (res.success) {
       setMessage({
         type: "success",
-        text: `Attendance for Class ${selectedClass} on ${selectedDate} saved successfully!`,
+        text: `Attendance for Class ${selectedClass}, Period ${selectedPeriod} on ${selectedDate} saved successfully!`,
       });
       router.refresh();
     } else {
@@ -88,10 +91,10 @@ export default function ClassAttendanceManager({
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 mb-6">
         <div>
           <h2 className="text-xl font-extrabold text-slate-800 flex items-center gap-2">
-            <span>📋</span> Take Class Attendance
+            <span>📋</span> Take Period Attendance
           </h2>
           <p className="text-xs text-slate-500 mt-1">
-            Select a class and date to mark present/absent for all students in one click.
+            Select class, period, and date to mark present/absent for all students in one click.
           </p>
         </div>
 
@@ -107,6 +110,21 @@ export default function ClassAttendanceManager({
               {availableClasses.map((c) => (
                 <option key={c} value={c}>
                   Class {c}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          <div className="flex flex-col gap-1">
+            <label className="text-[11px] font-bold text-slate-600 uppercase">Period</label>
+            <select
+              value={selectedPeriod}
+              onChange={(e) => setSelectedPeriod(e.target.value)}
+              className="bg-white border border-slate-300 text-slate-800 text-xs font-bold rounded-xl p-2.5 outline-none focus:ring-2 focus:ring-sky-500 shadow-sm cursor-pointer"
+            >
+              {PERIOD_OPTIONS.map((p) => (
+                <option key={p} value={p}>
+                  Period {p}
                 </option>
               ))}
             </select>
@@ -136,7 +154,7 @@ export default function ClassAttendanceManager({
       {/* QUICK CONTROLS & STUDENT LIST */}
       {loading ? (
         <div className="p-8 text-center text-xs font-bold text-slate-500">
-          Loading students for Class {selectedClass}...
+          Loading students for Class {selectedClass}, Period {selectedPeriod}...
         </div>
       ) : students.length === 0 ? (
         <div className="p-6 bg-white/70 rounded-xl text-center text-slate-500 text-xs font-medium border border-slate-200">
@@ -226,7 +244,7 @@ export default function ClassAttendanceManager({
               className="bg-sky-600 hover:bg-sky-700 disabled:opacity-50 text-white font-extrabold text-xs px-6 py-3 rounded-xl transition shadow-md flex items-center gap-2 cursor-pointer"
             >
               <span>💾</span>
-              <span>{saving ? "Saving Attendance..." : `Save Attendance for Class ${selectedClass}`}</span>
+              <span>{saving ? "Saving Attendance..." : `Save Class ${selectedClass} · Period ${selectedPeriod}`}</span>
             </button>
           </div>
         </div>

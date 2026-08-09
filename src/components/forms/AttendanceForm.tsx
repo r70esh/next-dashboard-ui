@@ -12,6 +12,7 @@ const schema = z.object({
   student: z.string().min(2, { message: "Student name is required!" }),
   date: z.string().optional(),
   status: z.enum(["present", "absent", "late"], { errorMap: () => ({ message: "Status is required" }) }),
+  period: z.string().optional(),
 });
 
 type Inputs = z.infer<typeof schema>;
@@ -28,6 +29,7 @@ const AttendanceForm = ({ type, data }: { type: "create" | "update"; data?: any 
       student: data?.student || "",
       date: "",
       status: data?.status || "present",
+      period: data?.period || "",
     },
   });
 
@@ -56,7 +58,18 @@ const AttendanceForm = ({ type, data }: { type: "create" | "update"; data?: any 
       {error && <p className="text-red-500 text-sm bg-red-50 p-2 rounded">{error}</p>}
       {success && <p className="text-green-600 text-sm bg-green-50 p-2 rounded">{success}</p>}
       <InputField label="Student" name="student" register={register} error={errors.student} />
-      
+      <InputField label="Class (1-12)" name="class" register={register} inputProps={{ defaultValue: data?.class || "" }} />
+
+      <div className="flex flex-col gap-2">
+        <label className="text-sm font-medium text-gray-700">Period</label>
+        <select {...register("period")} className="border border-gray-300 rounded-md p-2 text-sm">
+          <option value="">General (no period)</option>
+          {Array.from({ length: 8 }, (_, i) => String(i + 1)).map((p) => (
+            <option key={p} value={p}>Period {p}</option>
+          ))}
+        </select>
+      </div>
+
       <div className="flex flex-col gap-2">
         <label className="text-sm font-medium text-gray-700">Date & Time</label>
         <div className="bg-slate-100 border border-slate-200 text-slate-500 text-xs font-bold rounded-xl p-2.5 shadow-sm cursor-not-allowed">

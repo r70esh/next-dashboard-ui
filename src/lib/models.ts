@@ -131,6 +131,7 @@ const attendanceSchema = new mongoose.Schema({
   date: { type: Date, required: true },
   student: { type: String, required: true },
   class: { type: String },
+  period: { type: String, default: "" },
   status: { type: String, enum: ["present", "absent", "late"], required: true },
 }, { timestamps: true });
 

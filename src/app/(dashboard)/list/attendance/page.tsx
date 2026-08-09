@@ -6,7 +6,7 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import Image from "next/image";
 import connectToDB from "@/lib/db";
-import { Attendance as AttendanceModel, Student as StudentModel, Parent as ParentModel } from "@/lib/models";
+import { Attendance as AttendanceModel, Student as StudentModel, Parent as ParentModel, Teacher as TeacherModel } from "@/lib/models";
 import ClassAttendanceManager from "@/components/ClassAttendanceManager";
 import { filterAndSort } from "@/lib/tableUtils";
 
@@ -22,6 +22,11 @@ const columns = [
   {
     header: "Class",
     accessor: "class",
+  },
+  {
+    header: "Period",
+    accessor: "period",
+    className: "hidden md:table-cell",
   },
   {
     header: "Status",
@@ -46,8 +51,17 @@ const AttendanceListPage = async ({
 
   await connectToDB();
 
-  // Classes 1-12
-  const availableClasses = ["1","2","3","4","5","6","7","8","9","10","11","12"];
+  // Classes 1-12; teachers are restricted to their assigned classes
+  const allClasses = ["1","2","3","4","5","6","7","8","9","10","11","12"];
+  let availableClasses = allClasses;
+  if (role === "teacher") {
+    const teacher = await TeacherModel.findOne({
+      $or: [{ _id: userId }, { email: userEmail }]
+    });
+    if (teacher && teacher.classes && teacher.classes.length > 0) {
+      availableClasses = teacher.classes.map(String).filter((c: string) => allClasses.includes(c));
+    }
+  }
 
   let filter: any = {};
 
@@ -97,7 +111,7 @@ const AttendanceListPage = async ({
   const filteredData = filterAndSort(attendanceData, {
     search,
     filter: filterParam,
-    searchFields: ["studentName", "displayClass", "status"],
+    searchFields: ["studentName", "displayClass", "period", "status"],
     filterField: (a) => a.status,
     sortField: sortField || undefined,
     sortDir,
@@ -122,6 +136,11 @@ const AttendanceListPage = async ({
       <td>
         <span className="bg-sky-100 text-sky-900 font-bold px-2 py-0.5 rounded text-xs">
           Class {item.displayClass}
+        </span>
+      </td>
+      <td className="hidden md:table-cell">
+        <span className="bg-indigo-100 text-indigo-900 font-bold px-2 py-0.5 rounded text-xs">
+          {item.period ? `Period ${item.period}` : "General"}
         </span>
       </td>
       <td className="hidden md:table-cell capitalize">

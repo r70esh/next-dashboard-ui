@@ -589,7 +589,7 @@ export async function getStudentPerformance(studentName: string, studentId: stri
 export async function createAttendance(data: any) {
   try {
     await connectToDB();
-    await Attendance.create({ student: data.student, date: new Date(), status: data.status });
+    await Attendance.create({ student: data.student, date: new Date(), class: data.class, period: data.period || "", status: data.status });
     revalidatePath("/list/attendance");
     return { success: true };
   } catch (e: any) { return { success: false, error: e.message }; }
@@ -597,7 +597,7 @@ export async function createAttendance(data: any) {
 export async function updateAttendance(id: string, data: any) {
   try {
     await connectToDB();
-    await Attendance.findByIdAndUpdate(id, { status: data.status });
+    await Attendance.findByIdAndUpdate(id, { status: data.status, class: data.class, period: data.period || "" });
     revalidatePath("/list/attendance");
     return { success: true };
   } catch (e: any) { return { success: false, error: e.message }; }
@@ -947,21 +947,25 @@ export async function changeUserPassword(email: string, newPassword: string) {
 }
 
 // ── CLASS BULK ATTENDANCE ───────────────────────────────────────────────────
-export async function getClassStudentsAndAttendance(className: string, dateStr: string) {
+// Fetch the students of a class with their attendance status for the given
+// date and period (period "1".."8"; empty period = whole-day / general).
+export async function getClassStudentsAndAttendance(className: string, dateStr: string, period = "") {
   try {
     await connectToDB();
     if (!className) return { success: false, students: [] };
 
     // Fetch students in this class
     const students = await Student.find({ class: className }).sort({ name: 1 });
-    
+
     // Parse target date boundaries (start of day to end of day)
     const targetDate = new Date(dateStr);
     const startOfDay = new Date(targetDate.setHours(0, 0, 0, 0));
     const endOfDay = new Date(targetDate.setHours(23, 59, 59, 999));
 
-    // Fetch existing attendance records for this date
+    // Fetch existing attendance records for this date, class, and period
     const existingRecords = await Attendance.find({
+      class: className,
+      period,
       date: { $gte: startOfDay, $lte: endOfDay }
     });
 
@@ -985,7 +989,7 @@ export async function getClassStudentsAndAttendance(className: string, dateStr: 
   }
 }
 
-export async function bulkSaveAttendance(className: string, dateStr: string, records: Array<{ name: string; studentId: string; status: "present" | "absent" | "late" }>) {
+export async function bulkSaveAttendance(className: string, dateStr: string, period = "", records: Array<{ name: string; studentId: string; status: "present" | "absent" | "late" }>) {
   try {
     await connectToDB();
     if (!className || !dateStr || !records || records.length === 0) {
@@ -999,11 +1003,15 @@ export async function bulkSaveAttendance(className: string, dateStr: string, rec
     const exactNow = new Date();
 
     for (const item of records) {
-      // Find existing attendance for this student on this day
+      // Find existing attendance for this student on this day, class, and period
       const existing = await Attendance.findOne({
+        class: className,
+        period,
         student: item.name,
         date: { $gte: startOfDay, $lte: endOfDay }
       }) || await Attendance.findOne({
+        class: className,
+        period,
         student: item.studentId,
         date: { $gte: startOfDay, $lte: endOfDay }
       });
@@ -1011,6 +1019,7 @@ export async function bulkSaveAttendance(className: string, dateStr: string, rec
       if (existing) {
         existing.status = item.status;
         existing.class = className;
+        existing.period = period;
         // Update the timestamp to the latest submission time
         existing.date = exactNow;
         await existing.save();
@@ -1019,6 +1028,7 @@ export async function bulkSaveAttendance(className: string, dateStr: string, rec
           date: exactNow,
           student: item.name,
           class: className,
+          period,
           status: item.status,
         });
       }
@@ -1030,6 +1040,49 @@ export async function bulkSaveAttendance(className: string, dateStr: string, rec
     return { success: true };
   } catch (e: any) {
     return { success: false, error: e.message };
+  }
+}
+
+// Weekly present/absent counts for a specific class + period, used by the
+// admin dashboard chart (period "1".."8"; empty period = all periods).
+export async function getPeriodAttendanceStats(className = "", period = "") {
+  try {
+    await connectToDB();
+    const filter: any = {};
+    if (className) filter.class = className;
+    if (period) filter.period = period;
+
+    const records = await Attendance.find(filter);
+    const days = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+    const dayStats: Record<string, { present: number; absent: number }> = {
+      Mon: { present: 0, absent: 0 },
+      Tue: { present: 0, absent: 0 },
+      Wed: { present: 0, absent: 0 },
+      Thu: { present: 0, absent: 0 },
+      Fri: { present: 0, absent: 0 },
+    };
+
+    records.forEach((rec: any) => {
+      const dayName = days[new Date(rec.date).getDay()];
+      if (dayStats[dayName]) {
+        if (rec.status === "present" || rec.status === "late") {
+          dayStats[dayName].present += 1;
+        } else {
+          dayStats[dayName].absent += 1;
+        }
+      }
+    });
+
+    return {
+      success: true,
+      data: ["Mon", "Tue", "Wed", "Thu", "Fri"].map((day) => ({
+        name: day,
+        present: dayStats[day].present || 0,
+        absent: dayStats[day].absent || 0,
+      })),
+    };
+  } catch (e: any) {
+    return { success: false, error: e.message, data: [] };
   }
 }
 
