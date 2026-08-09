@@ -10,6 +10,24 @@ import Announcements from "@/components/Announcements";
 
 export const dynamic = "force-dynamic";
 
+// Find a user doc by id → email → name. Each query is safe: a malformed or
+// stale session id must never crash the page (it would throw a CastError).
+async function findUserByModel(Model: any, id?: string | null, email?: string | null, name?: string | null) {
+  const queries: any[] = [];
+  if (id) queries.push({ _id: id });
+  if (email) queries.push({ email });
+  if (name) queries.push({ name });
+  for (const q of queries) {
+    try {
+      const doc = await Model.findOne(q);
+      if (doc) return doc;
+    } catch {
+      // invalid _id cast etc. -> try the next candidate
+    }
+  }
+  return null;
+}
+
 export default async function ProfilePage() {
   const session = await getServerSession(authOptions);
 
@@ -19,20 +37,44 @@ export default async function ProfilePage() {
 
   const role = (session.user as any).role;
   const userId = (session.user as any).id;
-  const userEmail = session.user.email;
+  const userEmail = session.user?.email;
+  const userName = session.user?.name;
 
   await connectToDB();
 
-  let userData: any = null;
+  const roleModels = [
+    { role: "admin", model: Admin },
+    { role: "teacher", model: Teacher },
+    { role: "student", model: Student },
+    { role: "parent", model: Parent },
+  ];
 
-  if (role === "admin") {
-    userData = await Admin.findOne({ _id: userId }) || await Admin.findOne({ email: userEmail });
-  } else if (role === "teacher") {
-    userData = await Teacher.findOne({ _id: userId }) || await Teacher.findOne({ email: userEmail });
-  } else if (role === "student") {
-    userData = await Student.findOne({ _id: userId }) || await Student.findOne({ email: userEmail });
-  } else if (role === "parent") {
-    userData = await Parent.findOne({ _id: userId }) || await Parent.findOne({ email: userEmail });
+  // Search the session's own role first; if the role is unknown/missing, search all.
+  const candidates = roleModels.filter((m) => m.role === role);
+
+  let userData: any = null;
+  let activeRole = role;
+
+  for (const c of candidates) {
+    const doc = await findUserByModel(c.model, userId, userEmail, userName);
+    if (doc) {
+      userData = doc;
+      activeRole = c.role;
+      break;
+    }
+  }
+
+  // Last resort: a role-less/stale session. Match across every collection so a
+  // logged-in student is always found.
+  if (!userData && candidates.length === 0) {
+    for (const c of roleModels) {
+      const doc = await findUserByModel(c.model, userId, userEmail, userName);
+      if (doc) {
+        userData = doc;
+        activeRole = c.role;
+        break;
+      }
+    }
   }
 
   if (!userData) {
@@ -44,15 +86,15 @@ export default async function ProfilePage() {
   }
 
   const plainId = userData._id.toString();
-  const name = userData.name ?? (role === "admin" ? "Admin User" : "");
+  const name = userData.name ?? (activeRole === "admin" ? "Admin User" : "");
   const email = userData.email ?? "";
   const phone = userData.phone ?? "N/A";
   const photo = userData.photo ?? "/avatar.png";
   const address = userData.address ?? "N/A";
 
   // Role specific fields
-  const studentClass = role === "student" ? (userData.class || "N/A") : null;
-  const teacherClasses = role === "teacher" ? (userData.classes && userData.classes.length > 0 ? userData.classes : ["N/A"]) : null;
+  const studentClass = activeRole === "student" ? (userData.class || "N/A") : null;
+  const teacherClasses = activeRole === "teacher" ? (userData.classes && userData.classes.length > 0 ? userData.classes : ["N/A"]) : null;
 
   return (
     <div className="flex-1 p-4 flex flex-col gap-4 xl:flex-row">
@@ -74,14 +116,14 @@ export default async function ProfilePage() {
                 <div className="flex items-center gap-3">
                   <h1 className="text-2xl font-bold text-slate-800">{name}</h1>
                   <span className="bg-sky-600 text-white text-[11px] font-bold px-2.5 py-0.5 rounded-full uppercase tracking-wider">
-                    {role}
+                    {activeRole}
                   </span>
                 </div>
                 <p className="text-xs text-slate-500 mt-1">
-                  {role === "student" && `Enrolled Student • ID: ${userData.studentId || plainId}`}
-                  {role === "teacher" && `Faculty Member • ID: ${userData.teacherId || plainId}`}
-                  {role === "parent" && `Parent / Guardian`}
-                  {role === "admin" && `System Administrator`}
+                  {activeRole === "student" && `Enrolled Student • ID: ${userData.studentId || plainId}`}
+                  {activeRole === "teacher" && `Faculty Member • ID: ${userData.teacherId || plainId}`}
+                  {activeRole === "parent" && `Parent / Guardian`}
+                  {activeRole === "admin" && `System Administrator`}
                 </p>
               </div>
 
@@ -97,7 +139,7 @@ export default async function ProfilePage() {
                 </div>
 
                 {/* Show Class for Student */}
-                {role === "student" && (
+                {activeRole === "student" && (
                   <div className="flex items-center gap-2 bg-amber-100 text-amber-900 px-2.5 py-1 rounded-lg border border-amber-200">
                     <span className="font-bold">Class:</span>
                     <span>{studentClass}</span>
@@ -105,7 +147,7 @@ export default async function ProfilePage() {
                 )}
 
                 {/* Show Teaching Classes for Teacher */}
-                {role === "teacher" && (
+                {activeRole === "teacher" && (
                   <div className="flex items-center gap-2 bg-purple-100 text-purple-900 px-2.5 py-1 rounded-lg border border-purple-200">
                     <span className="font-bold">Teaching Classes:</span>
                     <span>{teacherClasses ? teacherClasses.join(", ") : "None"}</span>
@@ -116,7 +158,7 @@ export default async function ProfilePage() {
               {/* Edit Profile Form */}
               <ProfileEditForm
                 id={plainId}
-                role={role}
+                role={activeRole}
                 initialName={userData.name || ""}
                 initialPhone={userData.phone || ""}
                 initialAddress={userData.address || ""}
@@ -141,13 +183,13 @@ export default async function ProfilePage() {
               <span className="text-slate-500 font-medium">Address</span>
               <span className="font-bold text-slate-700 text-right">{address}</span>
             </div>
-            {role === "student" && (
+            {activeRole === "student" && (
               <div className="flex justify-between py-2 border-b border-slate-100">
                 <span className="text-slate-500 font-medium">Class</span>
                 <span className="font-bold text-slate-700">{userData.class || "N/A"}</span>
               </div>
             )}
-            {role === "teacher" && (
+            {activeRole === "teacher" && (
               <div className="flex justify-between py-2 border-b border-slate-100">
                 <span className="text-slate-500 font-medium">Subjects</span>
                 <span className="font-bold text-slate-700">{userData.subjects ? userData.subjects.join(", ") : "N/A"}</span>
