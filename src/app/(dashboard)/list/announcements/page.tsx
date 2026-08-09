@@ -1,12 +1,13 @@
 import FormModal from "@/components/FormModal";
 import Pagination from "@/components/Pagination";
 import Table from "@/components/Table";
-import TableSearch from "@/components/TableSearch";
+import TableToolbar from "@/components/TableToolbar";
 import Image from "next/image";
 import connectToDB from "@/lib/db";
 import { Announcement as AnnouncementModel } from "@/lib/models";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
+import { filterAndSort } from "@/lib/tableUtils";
 
 type Announcement = {
   id: string;
@@ -22,7 +23,11 @@ const columns = [
   { header: "Actions", accessor: "action" },
 ];
 
-const AnnouncementListPage = async () => {
+const AnnouncementListPage = async ({
+  searchParams,
+}: {
+  searchParams: { search?: string; filter?: string; sort?: string };
+}) => {
   const session = await getServerSession(authOptions);
   const role = (session?.user as any)?.role || "admin";
 
@@ -32,6 +37,26 @@ const AnnouncementListPage = async () => {
     ...a,
     id: a._id,
     date: new Date(a.date).toLocaleDateString(),
+  }));
+
+  const search = searchParams.search || "";
+  const filter = searchParams.filter || "";
+  const sort = searchParams.sort || "";
+  const sortDir = sort.endsWith(":desc") ? "desc" : "asc";
+  const sortField = sort.split(":")[0] || "";
+
+  const filteredData = filterAndSort(data, {
+    search,
+    filter,
+    searchFields: ["title", "class"],
+    filterField: (a) => a.class,
+    sortField: sortField ? (sortField as keyof Announcement) : undefined,
+    sortDir,
+  });
+
+  const classOptions = Array.from(new Set(data.map((a) => String(a.class)))).map((c) => ({
+    value: c,
+    label: `Class ${c}`,
   }));
 
   const renderRow = (item: Announcement) => (
@@ -57,19 +82,23 @@ const AnnouncementListPage = async () => {
       <div className="flex items-center justify-between">
         <h1 className="hidden md:block text-lg font-semibold">All Announcements</h1>
         <div className="flex flex-col md:flex-row items-center gap-4 w-full md:w-auto">
-          <TableSearch />
+          <TableToolbar
+            searchPlaceholder="Search announcements..."
+            filterOptions={classOptions}
+            filterPlaceholder="Class"
+            sortOptions={[
+              { value: "title:asc", label: "Title (A-Z)" },
+              { value: "title:desc", label: "Title (Z-A)" },
+              { value: "date:asc", label: "Date (Oldest)" },
+              { value: "date:desc", label: "Date (Newest)" },
+            ]}
+          />
           <div className="flex items-center gap-4 self-end">
-            <button className="w-8 h-8 flex items-center justify-center rounded-full bg-mahankalYellow">
-              <Image src="/filter.png" alt="" width={14} height={14} />
-            </button>
-            <button className="w-8 h-8 flex items-center justify-center rounded-full bg-mahankalYellow">
-              <Image src="/sort.png" alt="" width={14} height={14} />
-            </button>
             {role === "admin" && <FormModal table="announcement" type="create" />}
           </div>
         </div>
       </div>
-      <Table columns={columns} renderRow={renderRow} data={data} />
+      <Table columns={columns} renderRow={renderRow} data={filteredData} />
       <Pagination />
     </div>
   );
