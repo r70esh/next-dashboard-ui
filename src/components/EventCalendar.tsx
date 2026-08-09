@@ -1,7 +1,7 @@
 "use client";
 
 import Image from "next/image";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Calendar from "react-calendar";
 import "react-calendar/dist/Calendar.css";
 
@@ -17,7 +17,11 @@ export type EventType = {
 };
 
 const EventCalendar = ({ events }: { events: EventType[] }) => {
-  const [value, onChange] = useState<Value>(new Date());
+  const [value, onChange] = useState<Value>(null);
+
+  useEffect(() => {
+    onChange(new Date());
+  }, []);
 
   // Filter events based on the selected date
   const selectedDateStr = value instanceof Date ? value.toLocaleDateString() : "";

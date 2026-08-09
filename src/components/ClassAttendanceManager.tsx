@@ -114,7 +114,7 @@ export default function ClassAttendanceManager({
 
           <div className="flex flex-col gap-1">
             <label className="text-[11px] font-bold text-slate-600 uppercase">Date</label>
-            <div className="bg-slate-100 border border-slate-200 text-slate-500 text-xs font-bold rounded-xl p-2.5 shadow-sm cursor-not-allowed">
+            <div className="bg-slate-100 border border-slate-200 text-slate-500 text-xs font-bold rounded-xl p-2.5 shadow-sm cursor-not-allowed" suppressHydrationWarning>
               {new Date().toLocaleDateString("en-US", { weekday: "short", month: "short", day: "numeric" })} (Today)
             </div>
           </div>

@@ -787,7 +787,7 @@ export default function LessonPlanBuilder({
                   </div>
                 )}
 
-                <div className="mt-5 border-t border-slate-100 pt-3 text-[10px] text-slate-400">
+                <div className="mt-5 border-t border-slate-100 pt-3 text-[10px] text-slate-400" suppressHydrationWarning>
                   Generated on: {new Date().toLocaleDateString()} · By: {initial?.ownerName || "Teacher"}
                 </div>
               </div>
