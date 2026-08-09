@@ -17,7 +17,7 @@ const schema = z.object({
   }, { message: "Capacity must be a positive number!" }),
   // Grade now limited to values 1-12 via enum of string literals
   grade: z.enum(["1","2","3","4","5","6","7","8","9","10","11","12"]),
-
+  supervisor: z.string().min(2, { message: "Supervisor name required!" }),
 });
 
 type Inputs = z.infer<typeof schema>;
