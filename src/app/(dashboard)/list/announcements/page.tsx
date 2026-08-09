@@ -50,7 +50,7 @@ const AnnouncementListPage = async ({
     filter,
     searchFields: ["title", "class"],
     filterField: (a) => a.class,
-    sortField: sortField ? (sortField as keyof Announcement) : undefined,
+    sortField: sortField || undefined,
     sortDir,
   });
 

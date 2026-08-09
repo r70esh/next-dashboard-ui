@@ -89,17 +89,17 @@ const AttendanceListPage = async ({
   }));
 
   const search = searchParams.search || "";
-  const filter = searchParams.filter || "";
+  const filterParam = searchParams.filter || "";
   const sort = searchParams.sort || "";
   const sortDir = sort.endsWith(":desc") ? "desc" : "asc";
   const sortField = sort.split(":")[0] || "";
 
   const filteredData = filterAndSort(attendanceData, {
     search,
-    filter,
+    filter: filterParam,
     searchFields: ["studentName", "displayClass", "status"],
     filterField: (a) => a.status,
-    sortField: sortField ? (sortField as keyof typeof attendanceData[number]) : undefined,
+    sortField: sortField || undefined,
     sortDir,
   });
 

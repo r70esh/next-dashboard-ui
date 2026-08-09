@@ -55,7 +55,7 @@ const EventListPage = async ({
     filter,
     searchFields: ["title", "class", "description"],
     filterField: (e) => e.class,
-    sortField: sortField ? (sortField as keyof EventItem) : undefined,
+    sortField: sortField || undefined,
     sortDir,
   });
 

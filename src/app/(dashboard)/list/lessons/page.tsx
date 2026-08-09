@@ -46,7 +46,7 @@ const LessonListPage = async ({
     filter,
     searchFields: ["subject", "class", "teacher"],
     filterField: (l) => l.class,
-    sortField: sortField ? (sortField as keyof Lesson) : undefined,
+    sortField: sortField || undefined,
     sortDir,
   });
 

@@ -80,7 +80,7 @@ const TeacherListPage = async ({
     filter,
     searchFields: ["name", "email", "teacherId"],
     filterField: (t) => t.subjects || [],
-    sortField: sortField ? (sortField as keyof typeof teachersData[number]) : undefined,
+    sortField: sortField || undefined,
     sortDir,
   });
 

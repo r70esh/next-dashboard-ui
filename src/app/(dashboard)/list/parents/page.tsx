@@ -66,7 +66,7 @@ const ParentListPage = async ({
     filter,
     searchFields: ["name", "email"],
     filterField: (p) => p.students || [],
-    sortField: sortField ? (sortField as keyof typeof parentsData[number]) : undefined,
+    sortField: sortField || undefined,
     sortDir,
   });
 

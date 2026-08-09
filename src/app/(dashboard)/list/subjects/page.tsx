@@ -44,7 +44,7 @@ const SubjectListPage = async ({
     filter,
     searchFields: ["name", "teachers"],
     filterField: (s) => s.teachers || [],
-    sortField: sortField ? (sortField as keyof Subject) : undefined,
+    sortField: sortField || undefined,
     sortDir,
   });
 

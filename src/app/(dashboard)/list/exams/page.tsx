@@ -95,17 +95,17 @@ const ExamListPage = async ({
   }));
 
   const search = searchParams.search || "";
-  const filter = searchParams.filter || "";
+  const filterParam = searchParams.filter || "";
   const sort = searchParams.sort || "";
   const sortDir = sort.endsWith(":desc") ? "desc" : "asc";
   const sortField = sort.split(":")[0] || "";
 
   const filteredData = filterAndSort(data, {
     search,
-    filter,
+    filter: filterParam,
     searchFields: ["subject", "class", "teacher"],
     filterField: (e) => e.class,
-    sortField: sortField ? (sortField as keyof Exam) : undefined,
+    sortField: sortField || undefined,
     sortDir,
   });
 

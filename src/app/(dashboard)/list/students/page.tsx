@@ -75,13 +75,13 @@ const StudentListPage = async ({
     filter,
     searchFields: ["name", "studentId", "class"],
     filterField: (s) => s.grade,
-    sortField: sortField ? (sortField as keyof typeof studentsData[number]) : undefined,
+    sortField: sortField || undefined,
     sortDir,
   });
 
   const gradeOptions = Array.from(
     new Set(studentsData.map((s: any) => String(s.grade)))
-  ).map((g) => ({ value: g, label: `Grade ${g}` }));
+  ).map((g) => ({ value: String(g), label: `Grade ${String(g)}` }));
 
   const renderRow = (item: Student) => (
     <tr

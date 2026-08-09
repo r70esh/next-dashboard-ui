@@ -48,7 +48,7 @@ const ClassListPage = async ({
     filter,
     searchFields: ["name", "supervisor"],
     filterField: (c) => c.grade,
-    sortField: sortField ? (sortField as keyof ClassItem) : undefined,
+    sortField: sortField || undefined,
     sortDir,
   });
 
