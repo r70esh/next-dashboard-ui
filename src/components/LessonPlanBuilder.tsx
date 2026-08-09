@@ -209,12 +209,12 @@ export default function LessonPlanBuilder({
 }) {
   const router = useRouter();
 
-  const [subject, setSubject] = useState(initial?.subject || "");
-  const [grade, setGrade] = useState(initial?.grade || "");
-  const [topic, setTopic] = useState(initial?.topic || "");
-  const [date, setDate] = useState(initial?.date || "");
-  const [duration, setDuration] = useState(initial?.duration || 45);
-  const [students, setStudents] = useState(initial?.students || 0);
+  const [subject, setSubject] = useState<string>(initial?.subject || "");
+  const [grade, setGrade] = useState<string>(initial?.grade || "");
+  const [topic, setTopic] = useState<string>(initial?.topic || "");
+  const [date, setDate] = useState<string>(initial?.date || "");
+  const [duration, setDuration] = useState<number>(initial?.duration || 45);
+  const [students, setStudents] = useState<number>(initial?.students || 0);
   const [objectives, setObjectives] = useState<string[]>(initial?.objectives || []);
   const [resources, setResources] = useState<string[]>(initial?.resources || []);
   const [resourceLinks, setResourceLinks] = useState<string[]>(initial?.resourceLinks || []);
