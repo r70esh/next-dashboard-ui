@@ -5,7 +5,8 @@ import { authOptions } from "@/lib/auth";
 import connectToDB from "@/lib/db";
 import { LessonPlan } from "@/lib/models";
 import PlanDocument from "@/components/lesson-plans/PlanDocument";
-import { Pencil, Printer, ArrowLeft } from "lucide-react";
+import PrintButton from "@/components/lesson-plans/PrintButton";
+import { Pencil, ArrowLeft } from "lucide-react";
 
 export const dynamic = "force-dynamic";
 
@@ -46,12 +47,7 @@ export default async function LessonPlanDetailPage({ params }: { params: { id: s
           >
             <ArrowLeft className="h-3.5 w-3.5" /> All Plans
           </Link>
-          <button
-            onClick={() => window.print()}
-            className="flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-bold text-slate-600 transition hover:bg-slate-50"
-          >
-            <Printer className="h-3.5 w-3.5" /> Print / PDF
-          </button>
+          <PrintButton />
           {isOwner && (
             <Link
               href={`/lesson-plans/${params.id}/edit`}
