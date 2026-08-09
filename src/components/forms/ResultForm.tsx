@@ -6,7 +6,8 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import InputField from "../InputField";
 import { createResult, updateResult } from "@/lib/actions";
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { useSession } from "next-auth/react";
 
 const schema = z.object({
   subject: z.string().min(2, { message: "Subject is required!" }),
@@ -34,13 +35,16 @@ const ResultForm = ({ type, data }: { type: "create" | "update"; data?: any }) =
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
+  const { data: session } = useSession();
+  const isTeacher = (session?.user as any)?.role === "teacher";
+  const creatorName = session?.user?.name || "";
 
-  const { register, handleSubmit, watch, formState: { errors } } = useForm<Inputs>({
+  const { register, handleSubmit, watch, setValue, formState: { errors } } = useForm<Inputs>({
     resolver: zodResolver(schema),
     defaultValues: {
       subject: data?.subject || "",
       class: data?.class || "",
-      teacher: data?.teacher || "",
+      teacher: type === "create" ? creatorName : data?.teacher || "",
       student: data?.student || "",
       type: data?.type || "assignment",
       date: data?.date ? new Date(data.date).toISOString().slice(0, 10) : "",
@@ -48,6 +52,13 @@ const ResultForm = ({ type, data }: { type: "create" | "update"; data?: any }) =
       maxScore: data?.maxScore?.toString() || "100",
     },
   });
+
+  // Auto-fill the logged-in teacher's name and keep it locked.
+  useEffect(() => {
+    if (isTeacher && creatorName) {
+      setValue("teacher", creatorName, { shouldValidate: true });
+    }
+  }, [isTeacher, creatorName, setValue]);
 
   const selectedType = watch("type");
 
@@ -104,7 +115,20 @@ const ResultForm = ({ type, data }: { type: "create" | "update"; data?: any }) =
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         <InputField label="Subject Name" name="subject" register={register} error={errors.subject} />
         <InputField label="Class (1-12)" name="class" register={register} error={errors.class} />
-        <InputField label="Teacher Name" name="teacher" register={register} error={errors.teacher} />
+        {isTeacher ? (
+          <div className="flex flex-col gap-2 w-full md:w-1/4">
+            <label className="text-xs text-gray-500">Teacher Name (auto)</label>
+            <input
+              {...register("teacher")}
+              disabled
+              className="ring-[1.5px] ring-gray-300 bg-gray-100 p-2 rounded-md text-sm w-full cursor-not-allowed"
+              title="Your name is added automatically"
+            />
+            <p className="text-[10px] font-medium text-sky-600">Automatically set to your account</p>
+          </div>
+        ) : (
+          <InputField label="Teacher Name" name="teacher" register={register} error={errors.teacher} />
+        )}
         <InputField label="Student Name" name="student" register={register} error={errors.student} />
         <InputField label="Score / Marks Obtained" name="score" register={register} error={errors.score} />
         <InputField label="Max Marks (Full Marks)" name="maxScore" register={register} error={errors.maxScore} />

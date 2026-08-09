@@ -1,12 +1,12 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Loader2, School, Layers, Users, UserCog, CheckCircle2, AlertCircle } from "lucide-react";
-import { createClass, updateClass } from "@/lib/actions";
+import { createClass, updateClass, getTeacherOptions } from "@/lib/actions";
 
 const schema = z.object({
   name: z
@@ -23,28 +23,18 @@ const schema = z.object({
     }, { message: "Capacity must be a positive number." }),
   supervisor: z
     .string()
-    .min(2, { message: "Supervisor name or ID is required." })
-    .refine((val) => /^[A-Za-z][A-Za-z0-9 .'-]*$/.test(val.trim()), {
-      message: "Supervisor must be a valid name or teacher ID (e.g. T1001).",
-    }),
+    .trim()
+    .regex(/^[Tt][0-9]+$/, { message: "Supervisor must be a valid Teacher ID (e.g. T1001)." }),
 });
 
 type Inputs = z.infer<typeof schema>;
 
-const CLASS_LEVELS = [
-  { value: "1", label: "Class 1" },
-  { value: "2", label: "Class 2" },
-  { value: "3", label: "Class 3" },
-  { value: "4", label: "Class 4" },
-  { value: "5", label: "Class 5" },
-  { value: "6", label: "Class 6" },
-  { value: "7", label: "Class 7" },
-  { value: "8", label: "Class 8" },
-  { value: "9", label: "Class 9" },
-  { value: "10", label: "Class 10" },
-  { value: "11", label: "Class 11" },
-  { value: "12", label: "Class 12" },
-];
+const CLASS_LEVELS = Array.from({ length: 12 }, (_, i) => ({
+  value: String(i + 1),
+  label: `Class ${i + 1}`,
+}));
+
+type TeacherOption = { teacherId: string; name: string };
 
 const inputCls =
   "w-full rounded-xl border border-slate-300 bg-slate-50 px-3.5 py-2.5 text-sm text-slate-800 placeholder:text-slate-400 outline-none transition focus:bg-white focus:border-indigo-400 focus:ring-2 focus:ring-indigo-200";
@@ -55,6 +45,9 @@ const ClassForm = ({ type, data }: { type: "create" | "update"; data?: any }) =>
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
+  const [teachers, setTeachers] = useState<TeacherOption[]>([]);
+  const [loadingTeachers, setLoadingTeachers] = useState(false);
+  const [teacherError, setTeacherError] = useState("");
 
   const {
     register,
@@ -72,6 +65,29 @@ const ClassForm = ({ type, data }: { type: "create" | "update"; data?: any }) =>
   });
 
   const watchedClass = watch("class");
+
+  useEffect(() => {
+    let mounted = true;
+    setLoadingTeachers(true);
+    getTeacherOptions().then((res) => {
+      if (!mounted) return;
+      setLoadingTeachers(false);
+      if (res.success) {
+        setTeachers(res.teachers || []);
+      } else {
+        setTeacherError(res.error || "Could not load teachers.");
+      }
+    });
+    return () => {
+      mounted = false;
+    };
+  }, []);
+
+  // Keep existing supervisor visible when editing a class
+  const supervisorOptions: TeacherOption[] =
+    type === "update" && data?.supervisor
+      ? [{ teacherId: data.supervisor, name: "(current supervisor)" }, ...teachers]
+      : teachers;
 
   const onSubmit = handleSubmit(async (formData) => {
     setLoading(true);
@@ -109,7 +125,9 @@ const ClassForm = ({ type, data }: { type: "create" | "update"; data?: any }) =>
           <h1 className="text-lg font-extrabold text-slate-800">
             {type === "create" ? "Add New Class" : "Update Class"}
           </h1>
-          <p className="text-[11px] text-slate-400">Classes run from Class 1 to Class 12</p>
+          <p className="text-[11px] text-slate-400">
+            Classes from Class 1 to Class 12 · Supervisor must be a teacher ID
+          </p>
         </div>
       </div>
 
@@ -131,7 +149,7 @@ const ClassForm = ({ type, data }: { type: "create" | "update"; data?: any }) =>
           </label>
           <input
             type="text"
-            placeholder='e.g. "Class 1A", "Grade 5-B"'
+            placeholder='e.g. "1A", "Class 5-B"'
             className={inputCls}
             {...register("name")}
           />
@@ -153,9 +171,7 @@ const ClassForm = ({ type, data }: { type: "create" | "update"; data?: any }) =>
             </select>
             {errors.class && <p className="text-[11px] font-medium text-red-500">{errors.class.message}</p>}
             {watchedClass && (
-              <p className="text-[10px] font-medium text-slate-400">
-                Level {watchedClass} · Class 1 to 12
-              </p>
+              <p className="text-[10px] font-medium text-slate-400">Level {watchedClass} · Class 1 to 12</p>
             )}
           </div>
 
@@ -176,19 +192,33 @@ const ClassForm = ({ type, data }: { type: "create" | "update"; data?: any }) =>
 
         <div className="flex flex-col gap-1.5">
           <label className={labelCls}>
-            <UserCog className="h-3.5 w-3.5 text-indigo-400" /> Supervisor ID / Name
+            <UserCog className="h-3.5 w-3.5 text-indigo-400" /> Supervisor (Teacher ID)
           </label>
-          <input
-            type="text"
-            placeholder="e.g. T1001 or Teacher Name"
-            className={inputCls}
-            {...register("supervisor")}
-          />
+          {loadingTeachers ? (
+            <div className="flex items-center gap-2 rounded-xl border border-slate-200 bg-slate-50 px-3.5 py-2.5 text-xs text-slate-500">
+              <Loader2 className="h-3.5 w-3.5 animate-spin" /> Loading teachers...
+            </div>
+          ) : teacherError ? (
+            <p className="text-[11px] font-medium text-red-500">{teacherError}</p>
+          ) : supervisorOptions.length === 0 ? (
+            <p className="text-[11px] font-medium text-amber-600">
+              No teachers registered yet. Add a teacher first, then pick their ID here.
+            </p>
+          ) : (
+            <select className={inputCls} defaultValue="" {...register("supervisor")}>
+              <option value="">Select a teacher ID</option>
+              {supervisorOptions.map((t) => (
+                <option key={t.teacherId} value={t.teacherId}>
+                  {t.teacherId} — {t.name}
+                </option>
+              ))}
+            </select>
+          )}
           {errors.supervisor ? (
             <p className="text-[11px] font-medium text-red-500">{errors.supervisor.message}</p>
           ) : (
             <p className="text-[10px] font-medium text-slate-400">
-              Enter the assigned teacher&apos;s ID or name as supervisor.
+              Enter or select the assigned teacher&apos;s ID (format: T1001).
             </p>
           )}
         </div>

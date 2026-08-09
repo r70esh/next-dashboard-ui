@@ -6,10 +6,15 @@ import Link from "next/link";
 import connectToDB from "@/lib/db";
 import { Teacher } from "@/lib/models";
 import ProfileEditForm from "@/components/ProfileEditForm";
+import ApproveTeacherButton from "@/components/ApproveTeacherButton";
 import { notFound } from "next/navigation";
+import { getServerSession } from "next-auth";
+import { authOptions } from "@/lib/auth";
 
 const SingleTeacherPage = async ({ params }: { params: { id: string } }) => {
   await connectToDB();
+  const session = await getServerSession(authOptions);
+  const isAdmin = session?.user && (session.user as any).role === "admin";
 
   let teacher: any = null;
   try {
@@ -29,6 +34,7 @@ const SingleTeacherPage = async ({ params }: { params: { id: string } }) => {
 
   const plainId = teacher._id.toString();
   const teachingClasses = teacher.classes && teacher.classes.length > 0 ? teacher.classes.join(", ") : "None";
+  const pending = teacher.status === "pending";
 
   return (
     <div className="flex-1 p-4 flex flex-col gap-4 xl:flex-row">
@@ -49,7 +55,18 @@ const SingleTeacherPage = async ({ params }: { params: { id: string } }) => {
             </div>
             <div className="w-2/3 flex flex-col justify-between gap-4">
               <div>
-                <h1 className="text-xl font-semibold">{teacher.name}</h1>
+                <h1 className="text-xl font-semibold flex items-center gap-2">
+                  {teacher.name}
+                  {pending ? (
+                    <span className="rounded-full bg-amber-100 px-2.5 py-1 text-[10px] font-bold text-amber-700">
+                      Pending Approval
+                    </span>
+                  ) : (
+                    <span className="rounded-full bg-green-100 px-2.5 py-1 text-[10px] font-bold text-green-700">
+                      Approved
+                    </span>
+                  )}
+                </h1>
                 <p className="text-sm text-gray-500">Teacher ID: {teacher.teacherId}</p>
               </div>
 
@@ -78,6 +95,15 @@ const SingleTeacherPage = async ({ params }: { params: { id: string } }) => {
                 initialPhone={teacher.phone}
                 initialAddress={teacher.address || ""}
               />
+
+              {pending && isAdmin && (
+                <div className="rounded-lg bg-white/70 p-3">
+                  <p className="mb-2 text-[11px] font-semibold text-slate-600">
+                    This teacher registered on their own and is waiting for your approval. Once approved they can log in.
+                  </p>
+                  <ApproveTeacherButton id={plainId} />
+                </div>
+              )}
             </div>
           </div>
           {/* SMALL CARDS */}

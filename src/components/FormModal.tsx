@@ -135,20 +135,29 @@ const FormModal = ({
   return (
     <>
       <button
-        className={`${size} flex items-center justify-center rounded-full ${bgColor}`}
+        className={`${size} flex items-center justify-center rounded-full ${bgColor} shadow-sm transition hover:scale-105 active:scale-95`}
         onClick={() => setOpen(true)}
+        title={type === "create" ? "Add new" : type === "update" ? "Update" : "Delete"}
       >
         <Image src={`/${type}.png`} alt="" width={16} height={16} />
       </button>
       {open && (
-        <div className="w-screen h-screen absolute left-0 top-0 bg-black bg-opacity-60 backdrop-blur-sm transition-opacity duration-300 z-50 flex items-center justify-center">
-          <div className="bg-white p-4 rounded-md relative w-[90%] md:w-[70%] lg:w-[60%] xl:w-[50%] 2xl:w-[40%] max-h-[90vh] overflow-y-auto">
-            <Form />
-            <div
-              className="absolute top-4 right-4 cursor-pointer"
-              onClick={() => setOpen(false)}
-            >
-              <Image src="/close.png" alt="" width={14} height={14} />
+        <div className="animate-fade-in w-screen h-screen fixed left-0 top-0 z-50 flex items-center justify-center bg-slate-900/60 p-4 backdrop-blur-sm">
+          <div className="animate-modal-pop relative w-full max-h-[92vh] overflow-y-auto rounded-2xl bg-white shadow-2xl ring-1 ring-black/5">
+            <div className="sticky top-0 z-10 flex items-center justify-between rounded-t-2xl border-b border-slate-100 bg-white/95 px-6 py-4 backdrop-blur">
+              <h2 className="text-base font-extrabold capitalize text-slate-800">
+                {type === "create" ? `Add ${table}` : type === "update" ? `Update ${table}` : `Delete ${table}`}
+              </h2>
+              <button
+                onClick={() => setOpen(false)}
+                className="flex h-8 w-8 cursor-pointer items-center justify-center rounded-full bg-slate-100 text-slate-500 transition hover:bg-red-50 hover:text-red-600"
+                title="Close"
+              >
+                ✕
+              </button>
+            </div>
+            <div className="px-6 py-5">
+              <Form />
             </div>
           </div>
         </div>

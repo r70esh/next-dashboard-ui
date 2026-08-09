@@ -2,12 +2,14 @@ import FormModal from "@/components/FormModal";
 import Pagination from "@/components/Pagination";
 import Table from "@/components/Table";
 import TableToolbar from "@/components/TableToolbar";
-import { role } from "@/lib/data";
+import ApproveTeacherButton from "@/components/ApproveTeacherButton";
 import Image from "next/image";
 import Link from "next/link";
 import connectToDB from "@/lib/db";
 import { Teacher as TeacherModel } from "@/lib/models";
 import { filterAndSort } from "@/lib/tableUtils";
+import { getServerSession } from "next-auth";
+import { authOptions } from "@/lib/auth";
 
 type Teacher = {
   id: string;
@@ -19,6 +21,7 @@ type Teacher = {
   subjects: string[];
   classes: string[];
   address: string;
+  status?: string;
 };
 
 const columns = [
@@ -29,6 +32,11 @@ const columns = [
   {
     header: "Teacher ID",
     accessor: "teacherId",
+    className: "hidden md:table-cell",
+  },
+  {
+    header: "Status",
+    accessor: "status",
     className: "hidden md:table-cell",
   },
   {
@@ -63,6 +71,8 @@ const TeacherListPage = async ({
   searchParams: { search?: string; filter?: string; sort?: string };
 }) => {
   await connectToDB();
+  const session = await getServerSession(authOptions);
+  const isAdmin = session?.user && (session.user as any).role === "admin";
   const rawTeachers = await TeacherModel.find({});
   const teachersData = JSON.parse(JSON.stringify(rawTeachers)).map((t: any) => ({
     ...t,
@@ -88,43 +98,66 @@ const TeacherListPage = async ({
     new Set(teachersData.flatMap((t: any) => t.subjects || []))
   ).map((s) => ({ value: String(s), label: String(s) }));
 
-  const renderRow = (item: Teacher) => (
-    <tr
-      key={item.id}
-      className="border-b border-gray-200 even:bg-slate-50 text-sm hover:bg-mahankalPurpleLight"
-    >
-      <td className="flex items-center gap-4 p-4">
-        <Image
-          src={item.photo || "/avatar.png"}
-          alt=""
-          width={40}
-          height={40}
-          className="md:hidden xl:block w-10 h-10 rounded-full object-cover"
-        />
-        <div className="flex flex-col">
-          <h3 className="font-semibold">{item.name}</h3>
-          <p className="text-xs text-gray-500">{item?.email}</p>
-        </div>
-      </td>
-      <td className="hidden md:table-cell">{item.teacherId}</td>
-      <td className="hidden md:table-cell">{item.subjects?.join(",")}</td>
-      <td className="hidden md:table-cell">{item.classes?.join(",")}</td>
-      <td className="hidden md:table-cell">{item.phone}</td>
-      <td className="hidden md:table-cell">{item.address}</td>
-      <td>
-        <div className="flex items-center gap-2">
-          <Link href={`/list/teachers/${item.id}`}>
-            <button className="w-7 h-7 flex items-center justify-center rounded-full bg-mahankalSky">
-              <Image src="/view.png" alt="" width={16} height={16} />
-            </button>
-          </Link>
-          {role === "admin" && (
-            <FormModal table="teacher" type="delete" id={item.id}/>
+  const renderRow = (item: Teacher) => {
+    const pending = item.status === "pending";
+    return (
+      <tr
+        key={item.id}
+        className="border-b border-gray-200 even:bg-slate-50 text-sm hover:bg-mahankalPurpleLight"
+      >
+        <td className="flex items-center gap-4 p-4">
+          <Image
+            src={item.photo || "/avatar.png"}
+            alt=""
+            width={40}
+            height={40}
+            className="md:hidden xl:block w-10 h-10 rounded-full object-cover"
+          />
+          <div className="flex flex-col">
+            <h3 className="font-semibold flex items-center gap-2">
+              {item.name}
+              {pending && (
+                <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-bold text-amber-700">
+                  Pending
+                </span>
+              )}
+            </h3>
+            <p className="text-xs text-gray-500">{item?.email}</p>
+          </div>
+        </td>
+        <td className="hidden md:table-cell">{item.teacherId}</td>
+        <td className="hidden md:table-cell">
+          {pending ? (
+            <span className="rounded-full bg-amber-100 px-2.5 py-1 text-[10px] font-bold text-amber-700">
+              Awaiting Approval
+            </span>
+          ) : (
+            <span className="rounded-full bg-green-100 px-2.5 py-1 text-[10px] font-bold text-green-700">
+              Approved
+            </span>
           )}
-        </div>
-      </td>
-    </tr>
-  );
+        </td>
+        <td className="hidden md:table-cell">{item.subjects?.join(",")}</td>
+        <td className="hidden md:table-cell">{item.classes?.join(",")}</td>
+        <td className="hidden md:table-cell">{item.phone}</td>
+        <td className="hidden md:table-cell">{item.address}</td>
+        <td>
+          <div className="flex items-center gap-2">
+            <Link href={`/list/teachers/${item.id}`}>
+              <button className="w-7 h-7 flex items-center justify-center rounded-full bg-mahankalSky">
+                <Image src="/view.png" alt="" width={16} height={16} />
+              </button>
+            </Link>
+            {pending && isAdmin ? (
+              <ApproveTeacherButton id={item.id} />
+            ) : (
+              isAdmin && <FormModal table="teacher" type="delete" id={item.id} />
+            )}
+          </div>
+        </td>
+      </tr>
+    );
+  };
 
   return (
     <div className="bg-white p-4 rounded-md flex-1 m-4 mt-0">
@@ -143,7 +176,7 @@ const TeacherListPage = async ({
             ]}
           />
           <div className="flex items-center gap-4 self-end">
-            {role === "admin" && (
+            {isAdmin && (
               <FormModal table="teacher" type="create"/>
             )}
           </div>

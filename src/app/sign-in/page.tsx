@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 import Image from "next/image";
 import Link from "next/link";
-import { changeUserPassword } from "@/lib/actions";
+import { changeUserPassword, getTeacherStatus } from "@/lib/actions";
 
 type Role = "admin" | "teacher" | "student" | "parent";
 
@@ -85,6 +85,15 @@ const LoginPage = () => {
     }
 
     try {
+      if (role === "teacher") {
+        const status = await getTeacherStatus(email);
+        if (status.pending) {
+          setError("Your account is awaiting admin approval. You will be able to log in once verified.");
+          setLoading(false);
+          return;
+        }
+      }
+
       const res = await signIn("credentials", {
         email,
         password,

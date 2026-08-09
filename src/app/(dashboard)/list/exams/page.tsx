@@ -4,12 +4,23 @@ import FormModal from "@/components/FormModal";
 import Pagination from "@/components/Pagination";
 import Table from "@/components/Table";
 import TableToolbar from "@/components/TableToolbar";
-import Image from "next/image";
 import connectToDB from "@/lib/db";
 import { Exam as ExamModel, Teacher, Student, Parent } from "@/lib/models";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import { filterAndSort } from "@/lib/tableUtils";
+
+/** Normalise "Class 7", "class7", "7" → "7" */
+function normaliseClass(cls: string): string {
+  return (cls || "").replace(/[^0-9]/g, "");
+}
+
+/** All storage variants for matching */
+function classVariants(level: string): string[] {
+  const n = normaliseClass(level);
+  if (!n) return [];
+  return [n, `Class ${n}`, `class ${n}`, `CLASS ${n}`];
+}
 
 type Exam = {
   id: string;
@@ -44,52 +55,55 @@ const ExamListPage = async ({
   if (role === "admin") {
     filter = {};
   } else if (role === "teacher") {
-    // Teacher sees exams for classes they teach or created by them
     const teacherObj = await Teacher.findOne({
-      $or: [{ _id: userId }, { email: userEmail }]
+      $or: [{ _id: userId }, { email: userEmail }],
     });
     if (teacherObj) {
+      // Teacher sees exams they created (by name) OR for any of their classes
+      const classVars = (teacherObj.classes || []).flatMap(classVariants);
       filter = {
         $or: [
           { teacher: teacherObj.name },
-          { class: { $in: teacherObj.classes || [] } }
-        ]
+          ...(classVars.length > 0 ? [{ class: { $in: classVars } }] : []),
+        ],
       };
     }
   } else if (role === "student") {
-    // Student ONLY sees exams for their specific class!
     const studentObj = await Student.findOne({
-      $or: [{ _id: userId }, { email: userEmail }]
+      $or: [{ _id: userId }, { email: userEmail }],
     });
-    if (studentObj && studentObj.class) {
-      filter = { class: studentObj.class };
+    if (studentObj?.class) {
+      // Match all possible stored formats for the student's class
+      filter = { class: { $in: classVariants(studentObj.class) } };
     } else {
-      filter = { class: "__NONE__" };
+      filter = { _id: null };
     }
   } else if (role === "parent") {
-    // Parent ONLY sees exams for the classes of their linked children!
     const parentObj = await Parent.findOne({
-      $or: [{ _id: userId }, { email: userEmail }]
+      $or: [{ _id: userId }, { email: userEmail }],
     });
-    if (parentObj && parentObj.students && parentObj.students.length > 0) {
+    if (parentObj?.students?.length > 0) {
       const children = await Student.find({
         $or: [
           { name: { $in: parentObj.students } },
-          { email: { $in: parentObj.students } }
-        ]
-      });
-      const childrenClasses = Array.from(new Set(children.map((c) => c.class).filter(Boolean)));
-      if (childrenClasses.length > 0) {
-        filter = { class: { $in: childrenClasses } };
+          { studentId: { $in: parentObj.students } },
+          { email: { $in: parentObj.students } },
+        ],
+      }).select("class");
+      const levels = Array.from(
+        new Set(children.map((c: any) => normaliseClass(c.class)).filter(Boolean))
+      );
+      if (levels.length > 0) {
+        filter = { class: { $in: levels.flatMap(classVariants) } };
       } else {
-        filter = { class: "__NONE__" };
+        filter = { _id: null };
       }
     } else {
-      filter = { class: "__NONE__" };
+      filter = { _id: null };
     }
   }
 
-  const raw = await ExamModel.find(filter);
+  const raw = await ExamModel.find(filter).sort({ date: -1 });
   const data: Exam[] = JSON.parse(JSON.stringify(raw)).map((e: any) => ({
     ...e,
     id: e._id,
@@ -106,22 +120,26 @@ const ExamListPage = async ({
     search,
     filter: filterParam,
     searchFields: ["subject", "class", "teacher"],
-    filterField: (e) => e.class,
+    filterField: (e) => normaliseClass(e.class),
     sortField: sortField || undefined,
     sortDir,
   });
 
-  const classOptions = Array.from(new Set(data.map((e) => String(e.class)))).map((c) => ({
-    value: c,
-    label: `Class ${c}`,
-  }));
+  const classOptions = Array.from(
+    new Set(data.map((e) => normaliseClass(e.class)).filter(Boolean))
+  )
+    .sort((a, b) => Number(a) - Number(b))
+    .map((c) => ({ value: c, label: `Class ${c}` }));
 
   const renderRow = (item: Exam) => (
-    <tr key={item.id} className="border-b border-gray-200 even:bg-slate-50 text-sm hover:bg-mahankalPurpleLight">
+    <tr
+      key={item.id}
+      className="border-b border-gray-200 even:bg-slate-50 text-sm hover:bg-mahankalPurpleLight"
+    >
       <td className="flex items-center gap-4 p-4 font-medium">{item.subject}</td>
       <td>
         <span className="bg-amber-100 text-amber-900 font-bold px-2 py-1 rounded text-xs">
-          Class {item.class}
+          Class {normaliseClass(item.class) || item.class}
         </span>
       </td>
       <td className="hidden md:table-cell">{item.teacher}</td>

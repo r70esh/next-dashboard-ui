@@ -44,12 +44,12 @@ export default function PlanDocument({ plan }: { plan: any }) {
     <div className="lp-print rounded-2xl border border-slate-200 bg-white p-6 shadow-sm sm:p-8">
       <div className="rounded-lg border border-indigo-100 bg-indigo-50/60 p-4">
         <h1 className="text-center text-xl font-extrabold text-slate-800">पाठ योजना</h1>
-        <p className="mt-1 text-center text-xs text-slate-500">{plan.subject || "—"} · {plan.grade || "—"}</p>
+        <p className="mt-1 text-center text-xs text-slate-500">{plan.subject || "—"} · {plan.class ? (plan.class.startsWith("Class") ? plan.class : `Class ${plan.class}`) : "—"}</p>
       </div>
 
       <dl className="mt-5 grid grid-cols-1 gap-2 text-sm sm:grid-cols-2">
         <div className="flex items-center gap-2"><BookOpen className="h-4 w-4 text-indigo-500" /><span className="font-semibold text-slate-500">विषय:</span><span className="font-bold text-slate-800">{plan.subject || "—"}</span></div>
-        <div className="flex items-center gap-2"><Target className="h-4 w-4 text-indigo-500" /><span className="font-semibold text-slate-500">कक्षा:</span><span className="font-bold text-slate-800">{plan.grade || "—"}</span></div>
+        <div className="flex items-center gap-2"><Target className="h-4 w-4 text-indigo-500" /><span className="font-semibold text-slate-500">कक्षा:</span><span className="font-bold text-slate-800">{plan.class ? (plan.class.startsWith("Class") ? plan.class : `Class ${plan.class}`) : "—"}</span></div>
         <div className="flex items-center gap-2 sm:col-span-2"><BookOpen className="h-4 w-4 text-indigo-500" /><span className="font-semibold text-slate-500">पाठ:</span><span className="font-bold text-slate-800">{plan.topic || "—"}</span></div>
         <div className="flex items-center gap-2"><CalendarDays className="h-4 w-4 text-indigo-500" /><span className="font-semibold text-slate-500">मिति:</span><span className="font-bold text-slate-800">{adToBs(plan.date) || plan.date || "—"}</span></div>
         <div className="flex items-center gap-2"><Clock className="h-4 w-4 text-indigo-500" /><span className="font-semibold text-slate-500">समय:</span><span className="font-bold text-slate-800">{plan.duration || 0} मिनेट</span></div>

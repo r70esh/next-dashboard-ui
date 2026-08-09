@@ -104,7 +104,7 @@ export default function RegisterPage() {
       let result: any;
 
       if (role === "teacher") {
-        result = await createTeacher({ name, email, password, phone, address, subjects });
+        result = await createTeacher({ name, email, password, phone, address, subjects }, true);
       } else if (role === "student") {
         if (!generatedId) {
           setError("Please enter class and roll number to generate your ID.");
@@ -137,7 +137,11 @@ export default function RegisterPage() {
       }
 
       if (result.success) {
-        setSuccess(`✅ Account created! You can now sign in as a ${role}.`);
+        if (role === "teacher") {
+          setSuccess("✅ Account created! Your account is pending admin verification. You will be able to log in after the admin approves you.");
+        } else {
+          setSuccess(`✅ Account created! You can now sign in as a ${role}.`);
+        }
         setName("");
         setEmail("");
         setPassword("");

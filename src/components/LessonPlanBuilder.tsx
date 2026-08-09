@@ -67,16 +67,17 @@ type Template = {
   title: string;
   subject: string;
   grade: string;
+  class: string;
   duration: number;
   topics: string[];
 };
 
 const TEMPLATES: Template[] = [
-  { key: "english", title: "English Lesson Plan", subject: "English", grade: "Grade 7", duration: 45, topics: ["Narration", "Verb Tenses", "Reading Comprehension"] },
-  { key: "math", title: "Mathematics Lesson Plan", subject: "Mathematics", grade: "Grade 8", duration: 45, topics: ["Algebraic Equations", "Geometry Basics", "Set Theory"] },
-  { key: "science", title: "Science Lesson Plan", subject: "Science", grade: "Grade 6", duration: 45, topics: ["Photosynthesis", "Electricity", "States of Matter"] },
-  { key: "nepali", title: "Nepali Lesson Plan", subject: "Nepali", grade: "Grade 8", duration: 45, topics: ["हाम्रो भाषा, हाम्रो पहिचान", "व्याकरण: सङ्ख्या", "कविता वाचन"] },
-  { key: "social", title: "Social Studies Lesson Plan", subject: "Social Studies", grade: "Grade 9", duration: 45, topics: ["Nepal's Constitution", "Local Governance", "Map Reading"] },
+  { key: "english", title: "English Lesson Plan", subject: "English", grade: "7", class: "7", duration: 45, topics: ["Narration", "Verb Tenses", "Reading Comprehension"] },
+  { key: "math", title: "Mathematics Lesson Plan", subject: "Mathematics", grade: "8", class: "8", duration: 45, topics: ["Algebraic Equations", "Geometry Basics", "Set Theory"] },
+  { key: "science", title: "Science Lesson Plan", subject: "Science", grade: "6", class: "6", duration: 45, topics: ["Photosynthesis", "Electricity", "States of Matter"] },
+  { key: "nepali", title: "Nepali Lesson Plan", subject: "Nepali", grade: "8", class: "8", duration: 45, topics: ["हाम्रो भाषा, हाम्रो पहिचान", "व्याकरण: सङ्ख्या", "कविता वाचन"] },
+  { key: "social", title: "Social Studies Lesson Plan", subject: "Social Studies", grade: "9", class: "9", duration: 45, topics: ["Nepal's Constitution", "Local Governance", "Map Reading"] },
 ];
 
 /* ── AI helper generators (local, deterministic) ─────────────────────────── */
@@ -210,7 +211,7 @@ export default function LessonPlanBuilder({
   const router = useRouter();
 
   const [subject, setSubject] = useState<string>(initial?.subject || "");
-  const [grade, setGrade] = useState<string>(initial?.grade || "");
+  const [grade, setGrade] = useState<string>(initial?.class || initial?.grade || "");
   const [topic, setTopic] = useState<string>(initial?.topic || "");
   const [date, setDate] = useState<string>(initial?.date || "");
   const [duration, setDuration] = useState<number>(initial?.duration || 45);
@@ -247,6 +248,7 @@ export default function LessonPlanBuilder({
     () => ({
       subject,
       grade,
+      class: grade,
       topic,
       date,
       duration,
@@ -520,11 +522,14 @@ export default function LessonPlanBuilder({
                 </select>
               </div>
               <div>
-                <label className={labelCls}>Grade / Class</label>
+                <label className={labelCls}>Class Level</label>
                 <select value={grade} onChange={(e) => setGrade(e.target.value)} className={inputCls}>
-                  <option value="">Select grade</option>
-                  {Array.from({ length: 12 }, (_, i) => `Grade ${i + 1}`).map((g) => (
-                    <option key={g} value={g}>{g}</option>
+                  <option value="">Select class</option>
+                  {Array.from({ length: 12 }, (_, i) => ({
+                    value: String(i + 1),
+                    label: `Class ${i + 1}`
+                  })).map((c) => (
+                    <option key={c.value} value={c.value}>{c.label}</option>
                   ))}
                 </select>
               </div>
@@ -730,12 +735,12 @@ export default function LessonPlanBuilder({
               <div className="lp-print p-5">
                 <div className="rounded-lg border border-indigo-100 bg-indigo-50/60 p-4">
                   <h3 className="text-center text-lg font-extrabold text-slate-800">पाठ योजना</h3>
-                  <p className="mt-1 text-center text-[11px] text-slate-500">{subject} · {grade}</p>
+                  <p className="mt-1 text-center text-[11px] text-slate-500">{subject} · {grade ? (grade.startsWith("Class") ? grade : `Class ${grade}`) : "—"}</p>
                 </div>
 
                 <dl className="mt-4 space-y-1.5 text-xs">
                   <div className="flex justify-between gap-2"><dt className="font-semibold text-slate-500">विषय:</dt><dd className="text-right font-bold">{subject || "—"}</dd></div>
-                  <div className="flex justify-between gap-2"><dt className="font-semibold text-slate-500">कक्षा:</dt><dd className="text-right font-bold">{grade || "—"}</dd></div>
+                  <div className="flex justify-between gap-2"><dt className="font-semibold text-slate-500">कक्षा:</dt><dd className="text-right font-bold">{grade ? (grade.startsWith("Class") ? grade : `Class ${grade}`) : "—"}</dd></div>
                   <div className="flex justify-between gap-2"><dt className="font-semibold text-slate-500">पाठ:</dt><dd className="text-right font-bold">{topic || "—"}</dd></div>
                   <div className="flex justify-between gap-2"><dt className="font-semibold text-slate-500">मिति:</dt><dd className="text-right font-bold">{adToBs(date) || date || "—"}</dd></div>
                   <div className="flex justify-between gap-2"><dt className="font-semibold text-slate-500">समय:</dt><dd className="text-right font-bold">{duration} मिनेट</dd></div>
@@ -822,11 +827,11 @@ export default function LessonPlanBuilder({
                 </select>
               </div>
               <div>
-                <label className={labelCls}>Grade</label>
+                <label className={labelCls}>Class</label>
                 <select value={aiGrade} onChange={(e) => setAiGrade(e.target.value)} className={inputCls}>
                   <option value="">Select</option>
-                  {Array.from({ length: 12 }, (_, i) => `Grade ${i + 1}`).map((g) => (
-                    <option key={g} value={g}>{g}</option>
+                  {Array.from({ length: 12 }, (_, i) => String(i + 1)).map((g) => (
+                    <option key={g} value={g}>Class {g}</option>
                   ))}
                 </select>
               </div>
@@ -875,7 +880,7 @@ export default function LessonPlanBuilder({
                   <p className="flex items-center gap-2 text-sm font-bold text-slate-800">
                     <FileText className="h-4 w-4 text-indigo-500" /> {t.title}
                   </p>
-                  <p className="mt-2 text-[11px] text-slate-500">{t.grade} · {t.duration} min</p>
+                  <p className="mt-2 text-[11px] text-slate-500">Class {t.class} · {t.duration} min</p>
                   <p className="mt-1 truncate text-[11px] text-indigo-600">{t.topics.join(" · ")}</p>
                 </button>
               ))}

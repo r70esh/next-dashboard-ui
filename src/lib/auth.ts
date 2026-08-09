@@ -56,6 +56,11 @@ export const authOptions: NextAuthOptions = {
           throw new Error("Invalid credentials");
         }
 
+        // Teachers who self-registered must be approved by an admin first.
+        if (role === "teacher" && user.status === "pending") {
+          throw new Error("PENDING_APPROVAL");
+        }
+
         return {
           id: user._id.toString(),
           email: user.email,

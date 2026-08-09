@@ -6,7 +6,8 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import InputField from "../InputField";
 import { createLesson, updateLesson } from "@/lib/actions";
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { useSession } from "next-auth/react";
 
 const schema = z.object({
   subject: z.string().min(2, { message: "Subject is required!" }),
@@ -24,15 +25,25 @@ const LessonForm = ({ type, data }: { type: "create" | "update"; data?: any }) =
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
+  const { data: session } = useSession();
+  const isTeacher = (session?.user as any)?.role === "teacher";
+  const creatorName = session?.user?.name || "";
 
-  const { register, handleSubmit, formState: { errors } } = useForm<Inputs>({
+  const { register, handleSubmit, setValue, formState: { errors } } = useForm<Inputs>({
     resolver: zodResolver(schema),
     defaultValues: {
       subject: data?.subject || "",
       class: data?.class || "",
-      teacher: data?.teacher || "",
+      teacher: type === "create" ? creatorName : data?.teacher || "",
     },
   });
+
+  // Auto-fill the logged-in teacher's name and keep it locked.
+  useEffect(() => {
+    if (isTeacher && creatorName) {
+      setValue("teacher", creatorName, { shouldValidate: true });
+    }
+  }, [isTeacher, creatorName, setValue]);
 
   const onSubmit = handleSubmit(async (formData) => {
     setLoading(true);
@@ -60,7 +71,19 @@ const LessonForm = ({ type, data }: { type: "create" | "update"; data?: any }) =
       {success && <p className="text-green-600 text-sm bg-green-50 p-2 rounded">{success}</p>}
       <InputField label="Subject" name="subject" register={register} error={errors.subject} />
       <InputField label="Class (1-12)" name="class" register={register} error={errors.class} />
-      <InputField label="Teacher" name="teacher" register={register} error={errors.teacher} />
+      {isTeacher ? (
+        <div className="flex flex-col gap-2">
+          <label className="text-xs text-gray-500">Teacher (auto)</label>
+          <input
+            {...register("teacher")}
+            disabled
+            className="ring-[1.5px] ring-gray-300 bg-gray-100 p-2 rounded-md text-sm w-full cursor-not-allowed"
+          />
+          <p className="text-[10px] font-medium text-sky-600">Automatically set to your account</p>
+        </div>
+      ) : (
+        <InputField label="Teacher" name="teacher" register={register} error={errors.teacher} />
+      )}
       <button type="submit" disabled={loading} className="bg-mahankalSky text-white p-2 rounded-md font-medium disabled:opacity-60">
         {loading ? "Saving..." : type === "create" ? "Create Lesson" : "Update Lesson"}
       </button>

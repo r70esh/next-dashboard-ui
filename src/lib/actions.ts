@@ -8,14 +8,15 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 
 // ── TEACHER ──────────────────────────────────────────────────────────────────
-export async function createTeacher(data: any) {
+// `selfRegister` = account created from the public /register page.
+// Such teachers must be approved by an admin before they can log in.
+export async function createTeacher(data: any, selfRegister = false) {
   try {
     if (!data.name || !data.email || !data.password || !data.phone || !data.address) {
       return { success: false, error: "Name, email, password, phone, and address are required." };
     }
     await connectToDB();
     const hashed = await bcrypt.hash(data.password, 10);
-    const count = await Teacher.countDocuments();
     await Teacher.create({
       teacherId: `T${Date.now()}`,
       name: data.name,
@@ -25,11 +26,46 @@ export async function createTeacher(data: any) {
       address: data.address,
       subjects: data.subjects ? data.subjects.split(",").map((s: string) => s.trim()) : [],
       classes: [],
+      status: selfRegister ? "pending" : "approved",
     });
+    revalidatePath("/list/teachers");
+    return { success: true, pending: selfRegister };
+  } catch (e: any) {
+    return { success: false, error: e.message };
+  }
+}
+
+export async function approveTeacher(id: string) {
+  try {
+    await connectToDB();
+    await Teacher.findByIdAndUpdate(id, { status: "approved" });
+    revalidatePath("/list/teachers");
+    revalidatePath(`/list/teachers/${id}`);
+    return { success: true };
+  } catch (e: any) {
+    return { success: false, error: e.message };
+  }
+}
+
+export async function rejectTeacher(id: string) {
+  try {
+    await connectToDB();
+    await Teacher.findByIdAndDelete(id);
     revalidatePath("/list/teachers");
     return { success: true };
   } catch (e: any) {
     return { success: false, error: e.message };
+  }
+}
+
+export async function getTeacherStatus(email: string) {
+  try {
+    await connectToDB();
+    const teacher = await Teacher.findOne({ email }).select("status");
+    if (!teacher) return { exists: false, pending: false };
+    return { exists: true, pending: teacher.status === "pending" };
+  } catch {
+    return { exists: false, pending: false };
   }
 }
 
@@ -236,10 +272,33 @@ export async function deleteClass(id: string) {
   } catch (e: any) { return { success: false, error: e.message }; }
 }
 
+// ── TEACHER OPTIONS (for supervisor selectors) ───────────────────────────────
+export async function getTeacherOptions() {
+  try {
+    await connectToDB();
+    const teachers = await Teacher.find({ status: { $ne: "pending" } }).select("teacherId name").sort({ name: 1 });
+    return { success: true, teachers: JSON.parse(JSON.stringify(teachers)) };
+  } catch (e: any) {
+    return { success: false, error: e.message, teachers: [] };
+  }
+}
+
+// When a teacher (logged in) creates/updates a record, the teacher name is
+// always taken from the session so it can never be typed or forged.
+async function lockTeacherFromSession(data: any) {
+  const session = await getServerSession(authOptions);
+  const role = (session?.user as any)?.role;
+  if (role === "teacher" && session?.user?.name) {
+    data.teacher = session.user.name;
+  }
+  return data;
+}
+
 // ── EXAM ──────────────────────────────────────────────────────────────────────
 export async function createExam(data: any) {
   try {
     await connectToDB();
+    await lockTeacherFromSession(data);
     await Exam.create({ subject: data.subject, class: data.class, teacher: data.teacher, date: new Date(data.date) });
     revalidatePath("/list/exams");
     return { success: true };
@@ -257,6 +316,7 @@ export async function deleteExam(id: string) {
 export async function updateExam(id: string, data: any) {
   try {
     await connectToDB();
+    await lockTeacherFromSession(data);
     await Exam.findByIdAndUpdate(id, {
       subject: data.subject,
       class: data.class,
@@ -273,6 +333,7 @@ export async function updateExam(id: string, data: any) {
 export async function createAssignment(data: any) {
   try {
     await connectToDB();
+    await lockTeacherFromSession(data);
     await Assignment.create({ subject: data.subject, class: data.class, teacher: data.teacher, dueDate: new Date(data.dueDate) });
     revalidatePath("/list/assignments");
     return { success: true };
@@ -281,6 +342,7 @@ export async function createAssignment(data: any) {
 export async function updateAssignment(id: string, data: any) {
   try {
     await connectToDB();
+    await lockTeacherFromSession(data);
     await Assignment.findByIdAndUpdate(id, {
       subject: data.subject,
       class: data.class,
@@ -304,6 +366,7 @@ export async function deleteAssignment(id: string) {
 export async function createResult(data: any) {
   try {
     await connectToDB();
+    await lockTeacherFromSession(data);
     await Result.create({
       subject: data.subject,
       class: data.class,
@@ -330,6 +393,7 @@ export async function deleteResult(id: string) {
 export async function updateResult(id: string, data: any) {
   try {
     await connectToDB();
+    await lockTeacherFromSession(data);
     await Result.findByIdAndUpdate(id, {
       subject: data.subject,
       class: data.class,
@@ -543,6 +607,7 @@ export async function deleteAnnouncement(id: string) {
 export async function createLesson(data: any) {
   try {
     await connectToDB();
+    await lockTeacherFromSession(data);
     await Lesson.create({ subject: data.subject, class: data.class, teacher: data.teacher });
     revalidatePath("/list/lessons");
     return { success: true };
@@ -559,6 +624,7 @@ export async function deleteLesson(id: string) {
 export async function updateLesson(id: string, data: any) {
   try {
     await connectToDB();
+    await lockTeacherFromSession(data);
     await Lesson.findByIdAndUpdate(id, {
       subject: data.subject,
       class: data.class,

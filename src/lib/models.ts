@@ -11,6 +11,7 @@ const teacherSchema = new mongoose.Schema(
     subjects: { type: [String] },
     classes: { type: [String] },
     address: { type: String, required: true },
+    status: { type: String, enum: ["pending", "approved"], default: "pending" },
   },
   { timestamps: true }
 );
