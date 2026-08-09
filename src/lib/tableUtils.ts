@@ -1,4 +1,4 @@
-type FieldAccessor<T> = keyof T | ((item: T) => any);
+type FieldAccessor<T> = string | ((item: T) => any);
 
 function getValue<T>(item: T, field: FieldAccessor<T>): any {
   if (typeof field === "function") return field(item);

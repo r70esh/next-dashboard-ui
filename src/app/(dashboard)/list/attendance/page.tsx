@@ -1,13 +1,14 @@
 import FormModal from "@/components/FormModal";
 import Pagination from "@/components/Pagination";
 import Table from "@/components/Table";
-import TableSearch from "@/components/TableSearch";
+import TableToolbar from "@/components/TableToolbar";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import Image from "next/image";
 import connectToDB from "@/lib/db";
 import { Attendance as AttendanceModel, Student as StudentModel, Parent as ParentModel } from "@/lib/models";
 import ClassAttendanceManager from "@/components/ClassAttendanceManager";
+import { filterAndSort } from "@/lib/tableUtils";
 
 const columns = [
   {
@@ -33,7 +34,11 @@ const columns = [
   },
 ];
 
-const AttendanceListPage = async () => {
+const AttendanceListPage = async ({
+  searchParams,
+}: {
+  searchParams: { search?: string; filter?: string; sort?: string };
+}) => {
   const session = await getServerSession(authOptions);
   const role = (session?.user as any)?.role || "admin";
   const userId = (session?.user as any)?.id;
@@ -82,6 +87,27 @@ const AttendanceListPage = async () => {
     studentName: studentMap[a.student] || a.student,
     displayClass: a.class || "N/A",
   }));
+
+  const search = searchParams.search || "";
+  const filter = searchParams.filter || "";
+  const sort = searchParams.sort || "";
+  const sortDir = sort.endsWith(":desc") ? "desc" : "asc";
+  const sortField = sort.split(":")[0] || "";
+
+  const filteredData = filterAndSort(attendanceData, {
+    search,
+    filter,
+    searchFields: ["studentName", "displayClass", "status"],
+    filterField: (a) => a.status,
+    sortField: sortField ? (sortField as keyof typeof attendanceData[number]) : undefined,
+    sortDir,
+  });
+
+  const statusOptions = [
+    { value: "present", label: "Present" },
+    { value: "absent", label: "Absent" },
+    { value: "late", label: "Late" },
+  ];
 
   const renderRow = (item: any) => (
     <tr
@@ -135,14 +161,17 @@ const AttendanceListPage = async () => {
       <div className="flex items-center justify-between">
         <h1 className="hidden md:block text-lg font-semibold">Attendance History</h1>
         <div className="flex flex-col md:flex-row items-center gap-4 w-full md:w-auto">
-          <TableSearch />
+          <TableToolbar
+            searchPlaceholder="Search attendance..."
+            filterOptions={statusOptions}
+            filterPlaceholder="Status"
+            sortOptions={[
+              { value: "date:desc", label: "Date (Newest)" },
+              { value: "date:asc", label: "Date (Oldest)" },
+              { value: "studentName:asc", label: "Student (A-Z)" },
+            ]}
+          />
           <div className="flex items-center gap-4 self-end">
-            <button className="w-8 h-8 flex items-center justify-center rounded-full bg-mahankalYellow">
-              <Image src="/filter.png" alt="" width={14} height={14} />
-            </button>
-            <button className="w-8 h-8 flex items-center justify-center rounded-full bg-mahankalYellow">
-              <Image src="/sort.png" alt="" width={14} height={14} />
-            </button>
             {(role === "admin" || role === "teacher") && (
               <FormModal table="attendance" type="create" />
             )}
@@ -150,7 +179,7 @@ const AttendanceListPage = async () => {
         </div>
       </div>
       {/* LIST */}
-      <Table columns={columns} renderRow={renderRow} data={attendanceData} />
+      <Table columns={columns} renderRow={renderRow} data={filteredData} />
       {/* PAGINATION */}
       <Pagination />
     </div>

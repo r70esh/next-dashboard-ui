@@ -1,12 +1,13 @@
 import FormModal from "@/components/FormModal";
 import Pagination from "@/components/Pagination";
 import Table from "@/components/Table";
-import TableSearch from "@/components/TableSearch";
+import TableToolbar from "@/components/TableToolbar";
 import Image from "next/image";
 import connectToDB from "@/lib/db";
 import { Result as ResultModel, Teacher, Student, Parent } from "@/lib/models";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
+import { filterAndSort } from "@/lib/tableUtils";
 
 type Result = {
   id: string;
@@ -43,7 +44,11 @@ const typeBadge: Record<string, string> = {
   terminal_exam: "bg-purple-100 text-purple-800",
 };
 
-const ResultListPage = async () => {
+const ResultListPage = async ({
+  searchParams,
+}: {
+  searchParams: { search?: string; filter?: string; sort?: string };
+}) => {
   const session = await getServerSession(authOptions);
   const role = (session?.user as any)?.role || "admin";
   const userId = (session?.user as any)?.id;
@@ -104,6 +109,27 @@ const ResultListPage = async () => {
     date: new Date(r.date).toLocaleDateString(),
   }));
 
+  const search = searchParams.search || "";
+  const filter = searchParams.filter || "";
+  const sort = searchParams.sort || "";
+  const sortDir = sort.endsWith(":desc") ? "desc" : "asc";
+  const sortField = sort.split(":")[0] || "";
+
+  const filteredData = filterAndSort(data, {
+    search,
+    filter,
+    searchFields: ["subject", "student", "teacher", "class"],
+    filterField: (r) => r.type,
+    sortField: sortField ? (sortField as keyof Result) : undefined,
+    sortDir,
+  });
+
+  const typeOptions = [
+    { value: "assignment", label: "Assignment" },
+    { value: "class_test", label: "Class Test" },
+    { value: "terminal_exam", label: "Terminal Exam" },
+  ];
+
   const renderRow = (item: Result) => (
     <tr key={item.id} className="border-b border-gray-200 even:bg-slate-50 text-sm hover:bg-mahankalPurpleLight">
       <td className="flex items-center gap-4 p-4 font-medium">{item.subject}</td>
@@ -142,19 +168,24 @@ const ResultListPage = async () => {
       <div className="flex items-center justify-between">
         <h1 className="hidden md:block text-lg font-semibold">Exam & Assignment Results</h1>
         <div className="flex flex-col md:flex-row items-center gap-4 w-full md:w-auto">
-          <TableSearch />
+          <TableToolbar
+            searchPlaceholder="Search results..."
+            filterOptions={typeOptions}
+            filterPlaceholder="Type"
+            sortOptions={[
+              { value: "student:asc", label: "Student (A-Z)" },
+              { value: "score:asc", label: "Score (Low-High)" },
+              { value: "score:desc", label: "Score (High-Low)" },
+              { value: "date:asc", label: "Date (Oldest)" },
+              { value: "date:desc", label: "Date (Newest)" },
+            ]}
+          />
           <div className="flex items-center gap-4 self-end">
-            <button className="w-8 h-8 flex items-center justify-center rounded-full bg-mahankalYellow">
-              <Image src="/filter.png" alt="" width={14} height={14} />
-            </button>
-            <button className="w-8 h-8 flex items-center justify-center rounded-full bg-mahankalYellow">
-              <Image src="/sort.png" alt="" width={14} height={14} />
-            </button>
             {(role === "admin" || role === "teacher") && <FormModal table="result" type="create" />}
           </div>
         </div>
       </div>
-      <Table columns={columns} renderRow={renderRow} data={data} />
+      <Table columns={columns} renderRow={renderRow} data={filteredData} />
       <Pagination />
     </div>
   );
