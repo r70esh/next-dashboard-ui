@@ -80,7 +80,6 @@ export async function createStudent(data: any) {
       password: hashed,
       phone: data.phone,
       address: data.address,
-      grade: parseInt(data.grade) || 1,
       class: data.class || "1",
     });
     revalidatePath("/list/students");
@@ -98,7 +97,6 @@ export async function updateStudent(id: string, data: any) {
       email: data.email,
       phone: data.phone,
       address: data.address,
-      grade: parseInt(data.grade) || 1,
       class: data.class,
     };
     if (data.password) update.password = await bcrypt.hash(data.password, 10);
@@ -209,7 +207,7 @@ export async function deleteSubject(id: string) {
 export async function createClass(data: any) {
   try {
     await connectToDB();
-    await Class.create({ name: data.name, capacity: parseInt(data.capacity), grade: parseInt(data.grade), supervisor: data.supervisor });
+    await Class.create({ name: data.name, capacity: parseInt(data.capacity), class: parseInt(data.class), supervisor: data.supervisor });
     revalidatePath("/list/classes");
     return { success: true };
   } catch (e: any) { return { success: false, error: e.message }; }
@@ -221,7 +219,7 @@ export async function updateClass(id: string, data: any) {
     await Class.findByIdAndUpdate(id, {
       name: data.name,
       capacity: parseInt(data.capacity),
-      grade: parseInt(data.grade),
+      class: parseInt(data.class),
       supervisor: data.supervisor,
     });
     revalidatePath("/list/classes");
@@ -577,7 +575,7 @@ export async function updateLesson(id: string, data: any) {
 function sanitizePlan(data: any) {
   return {
     subject: String(data.subject || "").trim(),
-    grade: String(data.grade || "").trim(),
+    class: String(data.class || "").trim(),
     topic: String(data.topic || "").trim(),
     date: String(data.date || ""),
     duration: Number(data.duration) || 45,

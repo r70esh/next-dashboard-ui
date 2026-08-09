@@ -1,3 +1,5 @@
+export const dynamic = 'force-dynamic';
+
 import FormModal from "@/components/FormModal";
 import Pagination from "@/components/Pagination";
 import Table from "@/components/Table";

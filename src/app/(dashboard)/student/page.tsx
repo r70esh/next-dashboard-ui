@@ -57,7 +57,7 @@ const StudentPage = async () => {
           <Image src="/avatar.png" alt="" width={60} height={60} className="rounded-full" />
           <div>
             <h1 className="text-xl font-bold">Welcome, {student?.name || session?.user?.name || "Student"} 👋</h1>
-            <p className="text-sm text-gray-600">Grade {student?.grade} · Class {student?.class}</p>
+            <p className="text-sm text-gray-600">Class {student?.class}</p>
           </div>
         </div>
 

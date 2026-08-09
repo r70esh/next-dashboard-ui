@@ -16,7 +16,6 @@ type Student = {
   email?: string;
   photo: string;
   phone?: string;
-  grade: number;
   class: string;
   address: string;
 };
@@ -32,8 +31,8 @@ const columns = [
     className: "hidden md:table-cell",
   },
   {
-    header: "Grade",
-    accessor: "grade",
+    header: "Class",
+    accessor: "class",
     className: "hidden md:table-cell",
   },
   {
@@ -74,14 +73,14 @@ const StudentListPage = async ({
     search,
     filter,
     searchFields: ["name", "studentId", "class"],
-    filterField: (s) => s.grade,
+    filterField: (s) => s.class,
     sortField: sortField || undefined,
     sortDir,
   });
 
-  const gradeOptions = Array.from(
-    new Set(studentsData.map((s: any) => String(s.grade)))
-  ).map((g) => ({ value: String(g), label: `Grade ${String(g)}` }));
+  const classOptions = Array.from(
+    new Set(studentsData.map((s: any) => String(s.class)))
+  ).map((c) => ({ value: String(c), label: `Class ${String(c)}` }));
 
   const renderRow = (item: Student) => (
     <tr
@@ -102,7 +101,7 @@ const StudentListPage = async ({
         </div>
       </td>
       <td className="hidden md:table-cell">{item.studentId}</td>
-      <td className="hidden md:table-cell">{item.grade}</td>
+      <td className="hidden md:table-cell">{item.class}</td>
       <td className="hidden md:table-cell">{item.phone}</td>
       <td className="hidden md:table-cell">{item.address}</td>
       <td>
@@ -128,13 +127,13 @@ const StudentListPage = async ({
         <div className="flex flex-col md:flex-row items-center gap-4 w-full md:w-auto">
           <TableToolbar
             searchPlaceholder="Search students..."
-            filterOptions={gradeOptions}
-            filterPlaceholder="Grade"
+            filterOptions={classOptions}
+            filterPlaceholder="Class"
             sortOptions={[
               { value: "name:asc", label: "Name (A-Z)" },
               { value: "name:desc", label: "Name (Z-A)" },
-              { value: "grade:asc", label: "Grade (Low-High)" },
-              { value: "grade:desc", label: "Grade (High-Low)" },
+              { value: "class:asc", label: "Class (Low-High)" },
+              { value: "class:desc", label: "Class (High-Low)" },
             ]}
           />
           <div className="flex items-center gap-4 self-end">

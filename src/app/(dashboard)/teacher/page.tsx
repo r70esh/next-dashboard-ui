@@ -88,7 +88,6 @@ const TeacherPage = async () => {
                 <thead>
                   <tr className="text-left text-gray-500 border-b">
                     <th className="pb-2">Name</th>
-                    <th className="pb-2">Grade</th>
                     <th className="pb-2">Class</th>
                     <th className="pb-2">Email</th>
                   </tr>
@@ -97,7 +96,6 @@ const TeacherPage = async () => {
                   {students.slice(0, 8).map((s: any) => (
                     <tr key={s._id} className="border-b last:border-0 hover:bg-gray-50">
                       <td className="py-2 font-medium">{s.name}</td>
-                      <td className="py-2">{s.grade}</td>
                       <td className="py-2">{s.class}</td>
                       <td className="py-2 text-gray-400">{s.email}</td>
                     </tr>

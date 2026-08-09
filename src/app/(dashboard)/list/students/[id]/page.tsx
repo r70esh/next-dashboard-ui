@@ -118,9 +118,6 @@ const SingleStudentPage = async ({ params }: { params: { id: string } }) => {
                   <span className="bg-amber-200 text-amber-900 font-bold px-2 py-0.5 rounded text-xs">
                     Class: {student.class}
                   </span>
-                  <span className="bg-sky-200 text-sky-900 font-bold px-2 py-0.5 rounded text-xs">
-                    Grade: {student.grade}
-                  </span>
                 </div>
               </div>
 

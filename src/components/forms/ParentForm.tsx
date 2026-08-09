@@ -23,7 +23,6 @@ type StudentOption = {
   name: string;
   studentId: string;
   class: string;
-  grade: number;
 };
 
 const ParentForm = ({ type, data }: { type: "create" | "update"; data?: any }) => {
@@ -193,7 +192,6 @@ const ParentForm = ({ type, data }: { type: "create" | "update"; data?: any }) =
                 <div className="flex gap-2 text-xs text-gray-500">
                   <span className="bg-gray-100 px-2 py-0.5 rounded">ID: {s.studentId}</span>
                   <span className="bg-gray-100 px-2 py-0.5 rounded">Class {s.class}</span>
-                  <span className="bg-gray-100 px-2 py-0.5 rounded">Grade {s.grade}</span>
                 </div>
               </button>
             ))}

@@ -143,8 +143,8 @@ export default async function ProfilePage() {
             </div>
             {role === "student" && (
               <div className="flex justify-between py-2 border-b border-slate-100">
-                <span className="text-slate-500 font-medium">Grade</span>
-                <span className="font-bold text-slate-700">{userData.grade || "N/A"}</span>
+                <span className="text-slate-500 font-medium">Class</span>
+                <span className="font-bold text-slate-700">{userData.class || "N/A"}</span>
               </div>
             )}
             {role === "teacher" && (

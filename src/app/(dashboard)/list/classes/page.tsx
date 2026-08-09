@@ -13,14 +13,14 @@ type ClassItem = {
   id: string;
   name: string;
   capacity: number;
-  grade: number;
+  class: number;
   supervisor: string;
 };
 
 const columns = [
   { header: "Class Name", accessor: "name" },
+  { header: "Class Level", accessor: "class", className: "hidden md:table-cell" },
   { header: "Capacity", accessor: "capacity", className: "hidden md:table-cell" },
-  { header: "Grade", accessor: "grade", className: "hidden md:table-cell" },
   { header: "Supervisor", accessor: "supervisor", className: "hidden md:table-cell" },
   { header: "Actions", accessor: "action" },
 ];
@@ -47,21 +47,21 @@ const ClassListPage = async ({
     search,
     filter,
     searchFields: ["name", "supervisor"],
-    filterField: (c) => c.grade,
+    filterField: (c) => c.class,
     sortField: sortField || undefined,
     sortDir,
   });
 
-  const gradeOptions = Array.from(new Set(data.map((c) => String(c.grade)))).map((g) => ({
-    value: g,
-    label: `Grade ${g}`,
+  const classOptions = Array.from(new Set(data.map((c) => String(c.class)))).map((c) => ({
+    value: c,
+    label: `Class ${c}`,
   }));
 
   const renderRow = (item: ClassItem) => (
     <tr key={item.id} className="border-b border-gray-200 even:bg-slate-50 text-sm hover:bg-mahankalPurpleLight">
       <td className="flex items-center gap-4 p-4">{item.name}</td>
+      <td className="hidden md:table-cell">Class {item.class}</td>
       <td className="hidden md:table-cell">{item.capacity}</td>
-      <td className="hidden md:table-cell">{item.grade}</td>
       <td className="hidden md:table-cell">{item.supervisor}</td>
       <td>
         <div className="flex items-center gap-2">
@@ -83,12 +83,12 @@ const ClassListPage = async ({
         <div className="flex flex-col md:flex-row items-center gap-4 w-full md:w-auto">
           <TableToolbar
             searchPlaceholder="Search classes..."
-            filterOptions={gradeOptions}
-            filterPlaceholder="Grade"
+            filterOptions={classOptions}
+            filterPlaceholder="Class Level"
             sortOptions={[
               { value: "name:asc", label: "Name (A-Z)" },
-              { value: "grade:asc", label: "Grade (Low-High)" },
-              { value: "grade:desc", label: "Grade (High-Low)" },
+              { value: "class:asc", label: "Class (Low-High)" },
+              { value: "class:desc", label: "Class (High-Low)" },
               { value: "capacity:asc", label: "Capacity (Low-High)" },
             ]}
           />

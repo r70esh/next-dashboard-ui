@@ -97,7 +97,7 @@ const ParentPage = async () => {
               />
               <div className="flex-1">
                 <h2 className="text-lg font-bold text-gray-800">{child.name}</h2>
-                <p className="text-sm text-gray-600">Grade {child.grade} · Class {child.class}</p>
+                <p className="text-sm text-gray-600">Class {child.class}</p>
               </div>
             </div>
 

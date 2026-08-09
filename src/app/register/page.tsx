@@ -47,7 +47,6 @@ export default function RegisterPage() {
   const [subjects, setSubjects] = useState("");
 
   // Student-specific
-  const [grade, setGrade] = useState("");
   const [classNum, setClassNum] = useState("");
   const [rollNum, setRollNum] = useState("");
   const [generatedId, setGeneratedId] = useState("");
@@ -118,7 +117,6 @@ export default function RegisterPage() {
           password,
           phone,
           address,
-          grade,
           class: classNum,
           studentId: generatedId,
         });
@@ -146,7 +144,6 @@ export default function RegisterPage() {
         setPhone("");
         setAddress("");
         setSubjects("");
-        setGrade("");
         setClassNum("");
         setRollNum("");
         setSelectedChildren([]);
@@ -292,22 +289,9 @@ export default function RegisterPage() {
             {/* Student: class + roll -> auto ID */}
             {role === "student" && (
               <div className="flex flex-col gap-3">
-                <div className="grid grid-cols-3 gap-3">
+                <div className="grid grid-cols-2 gap-3">
                   <div className="flex flex-col gap-1">
-                    <label className="text-xs font-bold text-slate-700">Grade</label>
-                    <input
-                      type="number"
-                      min="1"
-                      max="12"
-                      value={grade}
-                      onChange={(e) => setGrade(e.target.value)}
-                      required
-                      placeholder="e.g. 3"
-                      className="w-full p-3 border border-slate-300 rounded-xl outline-none focus:ring-2 focus:ring-slate-800 text-sm text-slate-800 bg-slate-50 focus:bg-white transition"
-                    />
-                  </div>
-                  <div className="flex flex-col gap-1">
-                    <label className="text-xs font-bold text-slate-700">Class</label>
+                    <label className="text-xs font-bold text-slate-700">Class (1‑12)</label>
                     <input
                       type="number"
                       min="1"

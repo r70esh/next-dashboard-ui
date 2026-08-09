@@ -14,7 +14,6 @@ const schema = z.object({
   password: z.string().optional(),
   phone: z.string().optional(),
   address: z.string().min(1, { message: "Address is required!" }),
-  grade: z.string().min(1, { message: "Grade is required!" }),
   class: z.string().refine((val) => {
     const n = parseInt(val);
     return n >= 1 && n <= 12 && !isNaN(n);
@@ -38,7 +37,6 @@ const StudentForm = ({ type, data }: { type: "create" | "update"; data?: any }) 
       email: data?.email || "",
       phone: data?.phone || "",
       address: data?.address || "",
-      grade: data?.grade?.toString() || "",
       class: data?.class || "",
       rollNumber: "",
     },
@@ -108,20 +106,8 @@ const StudentForm = ({ type, data }: { type: "create" | "update"; data?: any }) 
 
       <span className="text-xs text-gray-400 font-medium uppercase tracking-wider">Class & ID</span>
       <div className="flex justify-between flex-wrap gap-4">
-        <div className="flex flex-col gap-2 w-full md:w-[30%]">
-          <label className="text-xs text-gray-500">Grade (number)</label>
-          <input
-            type="number"
-            min="1"
-            max="12"
-            placeholder="e.g. 3"
-            className="ring-[1.5px] ring-gray-300 p-2 rounded-md text-sm w-full"
-            {...register("grade")}
-          />
-          {errors.grade && <p className="text-xs text-red-400">{errors.grade.message}</p>}
-        </div>
-        <div className="flex flex-col gap-2 w-full md:w-[30%]">
-          <label className="text-xs text-gray-500">Class (number)</label>
+        <div className="flex flex-col gap-2 w-full md:w-[45%]">
+          <label className="text-xs text-gray-500">Class (1‑12)</label>
           <input
             type="number"
             min="1"
@@ -132,7 +118,7 @@ const StudentForm = ({ type, data }: { type: "create" | "update"; data?: any }) 
           />
           {errors.class && <p className="text-xs text-red-400">{errors.class.message}</p>}
         </div>
-        <div className="flex flex-col gap-2 w-full md:w-[30%]">
+        <div className="flex flex-col gap-2 w-full md:w-[45%]">
           <label className="text-xs text-gray-500">Roll Number</label>
           <input
             type="number"

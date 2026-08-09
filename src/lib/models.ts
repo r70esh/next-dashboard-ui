@@ -23,7 +23,6 @@ const studentSchema = new mongoose.Schema(
     password: { type: String, required: true },
     photo: { type: String },
     phone: { type: String },
-    grade: { type: Number, required: true },
     class: { type: String, required: true },
     address: { type: String, required: true },
   },
@@ -62,7 +61,7 @@ const subjectSchema = new mongoose.Schema({
 const classSchema = new mongoose.Schema({
   name: { type: String, required: true, unique: true },
   capacity: { type: Number, required: true },
-  grade: { type: Number, required: true },
+  class: { type: Number, required: true, min: 1, max: 12 },
   supervisor: { type: String, required: true },
 }, { timestamps: true });
 
@@ -77,7 +76,7 @@ const lessonPlanSchema = new mongoose.Schema(
     ownerId: { type: String, required: true },
     ownerName: { type: String, required: true },
     subject: { type: String, default: "" },
-    grade: { type: String, default: "" },
+    class: { type: String, default: "" },
     topic: { type: String, default: "" },
     date: { type: String, default: "" },
     duration: { type: Number, default: 45 },
