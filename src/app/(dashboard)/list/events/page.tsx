@@ -1,12 +1,13 @@
 import FormModal from "@/components/FormModal";
 import Pagination from "@/components/Pagination";
 import Table from "@/components/Table";
-import TableSearch from "@/components/TableSearch";
+import TableToolbar from "@/components/TableToolbar";
 import Image from "next/image";
 import connectToDB from "@/lib/db";
 import { Event as EventModel } from "@/lib/models";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
+import { filterAndSort } from "@/lib/tableUtils";
 
 type EventItem = {
   id: string;
@@ -27,7 +28,11 @@ const columns = [
   { header: "Actions", accessor: "action" },
 ];
 
-const EventListPage = async () => {
+const EventListPage = async ({
+  searchParams,
+}: {
+  searchParams: { search?: string; filter?: string; sort?: string };
+}) => {
   const session = await getServerSession(authOptions);
   const role = (session?.user as any)?.role || "admin";
 
@@ -37,6 +42,26 @@ const EventListPage = async () => {
     ...e,
     id: e._id,
     date: new Date(e.date).toLocaleDateString(),
+  }));
+
+  const search = searchParams.search || "";
+  const filter = searchParams.filter || "";
+  const sort = searchParams.sort || "";
+  const sortDir = sort.endsWith(":desc") ? "desc" : "asc";
+  const sortField = sort.split(":")[0] || "";
+
+  const filteredData = filterAndSort(data, {
+    search,
+    filter,
+    searchFields: ["title", "class", "description"],
+    filterField: (e) => e.class,
+    sortField: sortField ? (sortField as keyof EventItem) : undefined,
+    sortDir,
+  });
+
+  const classOptions = Array.from(new Set(data.map((e) => String(e.class)))).map((c) => ({
+    value: c,
+    label: `Class ${c}`,
   }));
 
   const renderRow = (item: EventItem) => (
