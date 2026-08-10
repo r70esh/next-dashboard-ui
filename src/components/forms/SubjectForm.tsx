@@ -10,8 +10,8 @@ import { useState } from "react";
 import { BookOpen, Layers, Loader2, CheckCircle2, AlertCircle } from "lucide-react";
 
 const schema = z.object({
-  name: z.string().min(2, { message: "Subject name must be at least 2 characters!" }),
-  classes: z.array(z.string()).min(1, { message: "Select at least one class." }),
+  name: z.string().trim().min(2, { message: "Subject name must be at least 2 characters!" }),
+  classes: z.string().min(1, { message: "Select at least one class." }),
 });
 
 type Inputs = z.infer<typeof schema>;
@@ -30,25 +30,27 @@ const SubjectForm = ({ type, data }: { type: "create" | "update"; data?: any }) 
     type === "update" ? (data?.classes || []).map(String) : []
   );
 
-  const { register, handleSubmit, formState: { errors } } = useForm<Inputs>({
+  const { register, handleSubmit, setValue, formState: { errors } } = useForm<Inputs>({
     resolver: zodResolver(schema),
     defaultValues: {
       name: data?.name || "",
-      classes: selectedClasses,
+      classes: (data?.classes || []).map(String).join(","),
     },
   });
 
   const toggleClass = (c: string) => {
-    setSelectedClasses((prev) =>
-      prev.includes(c) ? prev.filter((x) => x !== c) : [...prev, c]
-    );
+    setSelectedClasses((prev) => {
+      const next = prev.includes(c) ? prev.filter((x) => x !== c) : [...prev, c];
+      setValue("classes", next.join(","), { shouldValidate: true });
+      return next;
+    });
   };
 
-  const onSubmit = handleSubmit(async () => {
+  const onSubmit = handleSubmit(async (formData) => {
     setLoading(true);
     setError("");
     setSuccess("");
-    const payload = { name: (document.querySelector('[name="name"]') as HTMLInputElement)?.value || data?.name || "", classes: selectedClasses };
+    const payload = { name: formData.name, classes: selectedClasses };
     let result;
     if (type === "create") {
       result = await createSubject(payload);
@@ -93,8 +95,10 @@ const SubjectForm = ({ type, data }: { type: "create" | "update"; data?: any }) 
         <label className="flex items-center gap-1.5 text-xs font-bold text-slate-600">
           <BookOpen className="h-3.5 w-3.5 text-indigo-400" /> Subject Name
         </label>
-        <input type="text" name="name" defaultValue={data?.name || ""} className={inputCls} placeholder="e.g. Mathematics" />
+        <input type="text" className={inputCls} placeholder="e.g. Mathematics" {...register("name")} />
+        <input type="hidden" {...register("classes")} />
         {errors.name && <p className="text-[11px] font-medium text-red-500">{errors.name.message}</p>}
+        {errors.classes && <p className="text-[11px] font-medium text-red-500">{errors.classes.message}</p>}
       </div>
 
       <div className="flex flex-col gap-1.5">

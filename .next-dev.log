@@ -18,3 +18,49 @@
  ✓ Compiled /api/auth/[...nextauth] in 6.1s (891 modules)
  GET /api/auth/session 200 in 10892ms
  GET /api/auth/session 200 in 39ms
+ GET /api/auth/session 200 in 112ms
+ ○ Compiling / ...
+ ✓ Compiled / in 727ms (1243 modules)
+ GET /?_rsc=1h9g0 200 in 83ms
+ ○ Compiling /admin ...
+ ✓ Compiled /admin in 6.5s (2394 modules)
+ GET /admin?_rsc=6a4zu 200 in 1011ms
+ POST /admin 200 in 165ms
+ POST /admin 200 in 57ms
+ GET /api/auth/session 200 in 57ms
+ GET /list/teachers?_rsc=11j8a 200 in 102ms
+ ✓ Compiled /list/students in 392ms (2385 modules)
+ ✓ Compiled /list/parents in 397ms (2389 modules)
+ ○ Compiling /list/subjects ...
+ ✓ Compiled /list/subjects in 958ms (2391 modules)
+ GET /list/subjects?_rsc=u7t05 200 in 378ms
+ ○ Compiling /sign-in ...
+ ✓ Compiled /sign-in in 1094ms (2387 modules)
+ GET /sign-in?callbackUrl=%2F 200 in 4362ms
+ GET /sign-in 200 in 72ms
+ ○ Compiling /register ...
+ ✓ Compiled /register in 697ms (2393 modules)
+ GET /register 200 in 806ms
+ ○ Compiling /forgot-password ...
+ ✓ Compiled /forgot-password in 864ms (2399 modules)
+ GET /forgot-password 200 in 952ms
+ GET /sign-in?callbackUrl=%2Flist%2Fschedules 200 in 47ms
+ ○ Compiling /api/auth/[...nextauth] ...
+ ✓ Compiled /api/auth/[...nextauth] in 1060ms (1472 modules)
+ GET /api/auth/session 200 in 4653ms
+ ○ Compiling /lesson-plans ...
+ ✓ Compiled /lesson-plans in 1852ms (2418 modules)
+ ✓ Compiled in 1249ms (2432 modules)
+ GET /lesson-plans?_rsc=1bb7c 200 in 1421ms
+ GET /lesson-plans?_rsc=j44q2 200 in 105ms
+ GET /list/subjects?_rsc=zz64h 200 in 118ms
+ ○ Compiling /list/classes ...
+ ✓ Compiled /list/classes in 1142ms (2412 modules)
+ GET /list/classes?_rsc=16lnc 200 in 200ms
+ POST /list/classes 200 in 643ms
+ POST /list/classes 200 in 169ms
+ ○ Compiling /list/results ...
+ ✓ Compiled /list/results in 1769ms (1856 modules)
+ GET /list/results?_rsc=x7o5z 200 in 157ms
+ ✓ Compiled in 858ms (1856 modules)
+ GET /list/results?_rsc=gfdsx 200 in 145ms
