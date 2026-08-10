@@ -270,3 +270,88 @@
  POST /parent 200 in 163ms
  POST /parent 200 in 132ms
  POST /parent 200 in 122ms
+ ○ Compiling /_not-found ...
+ ✓ Compiled /_not-found in 8.2s (2467 modules)
+ GET /sign-in 404 in 12294ms
+ ○ Compiling /api/auth/[...nextauth] ...
+ ✓ Compiled /api/auth/[...nextauth] in 750ms (1312 modules)
+ ○ Compiling /_error ...
+ ✓ Compiled /_error in 4.4s (2680 modules)
+ GET /api/auth/session 500 in 11874ms
+ GET /sign-in 500 in 5706ms
+ POST /api/auth/_log 200 in 208ms
+ POST /api/auth/_log 200 in 208ms
+ GET /sign-in 200 in 26ms
+ GET /sign-in 200 in 62ms
+ GET /api/auth/session 200 in 56ms
+ GET /api/auth/session 200 in 24ms
+ POST /sign-in 200 in 243ms
+ GET /api/auth/providers 200 in 31ms
+ GET /api/auth/csrf 200 in 21ms
+ POST /api/auth/callback/credentials 200 in 417ms
+ GET /api/auth/session 200 in 25ms
+ GET /?_rsc=r3yhw 200 in 39ms
+ ○ Compiling /teacher ...
+ ✓ Compiled /teacher in 6.2s (2695 modules)
+ ○ Compiling /_not-found ...
+ GET /teacher?_rsc=15tr0 200 in 1213ms
+ ✓ Compiled /_not-found in 1968ms (2684 modules)
+ GET /_next/static/webpack/a74d8942ef30a88c.webpack.hot-update.json 404 in 2127ms
+ GET / 307 in 198ms
+ GET /teacher?_rsc=15tr0 200 in 726ms
+ GET /teacher 200 in 834ms
+ GET /api/auth/session 200 in 48ms
+ GET /api/auth/session 200 in 25ms
+ GET /api/auth/session 200 in 61ms
+ GET /list/assignments?_rsc=1dv6g 200 in 135ms
+ ○ Compiling /list/attendance ...
+ ✓ Compiled /list/attendance in 692ms (1360 modules)
+ GET /list/attendance?_rsc=jmqnf 200 in 648ms
+ POST /list/attendance 200 in 138ms
+ POST /list/attendance 200 in 118ms
+ POST /list/attendance 200 in 117ms
+ POST /list/attendance 200 in 543ms
+ GET /list/attendance?_rsc=snsx2 200 in 235ms
+ POST /list/attendance 200 in 505ms
+ POST /list/attendance 200 in 653ms
+ GET /list/attendance?_rsc=snsx2 200 in 659ms
+ POST /list/attendance 200 in 123ms
+ POST /list/attendance 200 in 610ms
+ GET /list/attendance?_rsc=snsx2 200 in 229ms
+ ○ Compiling /list/exams ...
+ ✓ Compiled /list/exams in 573ms (1360 modules)
+ GET /list/exams?_rsc=azh7m 200 in 426ms
+ POST /list/exams 200 in 178ms
+ POST /list/exams 200 in 109ms
+ POST /list/exams 200 in 343ms
+ POST /list/exams 200 in 400ms
+ POST /list/exams 200 in 462ms
+ GET /list/exams?_rsc=k0jh9 200 in 146ms
+ POST /list/exams 200 in 246ms
+ POST /list/exams 200 in 212ms
+ ○ Compiling /logout ...
+ ✓ Compiled /logout in 525ms (1349 modules)
+ ○ Compiling /api/auth/[...nextauth] ...
+ ✓ Compiled /api/auth/[...nextauth] in 601ms (1353 modules)
+ GET /api/auth/csrf 200 in 2498ms
+ GET /api/auth/csrf 200 in 33ms
+ POST /api/auth/signout 200 in 38ms
+ POST /api/auth/signout 200 in 22ms
+ ✓ Compiled /sign-in in 479ms (1358 modules)
+ GET /sign-in 200 in 2734ms
+ GET /api/auth/session 200 in 61ms
+ GET /api/auth/session 200 in 23ms
+ GET /api/auth/providers 200 in 30ms
+ GET /api/auth/csrf 200 in 21ms
+ POST /api/auth/callback/credentials 200 in 1030ms
+ GET /api/auth/session 200 in 28ms
+ ○ Compiling / ...
+ ✓ Compiled / in 739ms (1353 modules)
+ GET /?_rsc=r3yhw 200 in 57ms
+ ○ Compiling /student ...
+ ✓ Compiled /student in 643ms (1360 modules)
+ ○ Compiling /_not-found ...
+ ✓ Compiled /_not-found in 1451ms (2704 modules)
+ GET /_next/static/chunks/app/(dashboard)/student/page.js 404 in 1615ms
+ GET /student?_rsc=6laxm 200 in 1841ms
+ GET /student?_rsc=71d20 200 in 490ms
