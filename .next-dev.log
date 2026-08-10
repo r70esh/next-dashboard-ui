@@ -16,3 +16,5 @@
  GET /list/teachers 200 in 14676ms
  ○ Compiling /api/auth/[...nextauth] ...
  ✓ Compiled /api/auth/[...nextauth] in 6.1s (891 modules)
+ GET /api/auth/session 200 in 10892ms
+ GET /api/auth/session 200 in 39ms
