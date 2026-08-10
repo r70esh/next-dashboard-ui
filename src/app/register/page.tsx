@@ -52,9 +52,10 @@ export default function RegisterPage() {
   const [generatedId, setGeneratedId] = useState("");
 
   // Parent-specific
-  const [classFilter, setClassFilter] = useState("");
-  const [searchResults, setSearchResults] = useState<any[]>([]);
-  const [searching, setSearching] = useState(false);
+  const [classNum, setClassNum] = useState("");
+  const [rollNum, setRollNum] = useState("");
+  const [addingChild, setAddingChild] = useState(false);
+  const [addError, setAddError] = useState("");
   const [selectedChildren, setSelectedChildren] = useState<any[]>([]);
 
   // Auto-generate student ID (c<class><roll>)
@@ -69,25 +70,34 @@ export default function RegisterPage() {
     }
   }, [classNum, rollNum]);
 
-  const searchStudents = async () => {
-    if (!classFilter.trim()) return;
-    setSearching(true);
+  const addChild = async () => {
+    if (!classNum.trim() || !rollNum.trim()) {
+      setAddError("Enter both class and roll number.");
+      return;
+    }
+    setAddingChild(true);
+    setAddError("");
     try {
-      const res = await fetch(`/api/students?class=${classFilter.trim()}`);
+      const res = await fetch(
+        `/api/students?class=${encodeURIComponent(classNum.trim())}&roll=${encodeURIComponent(rollNum.trim())}`
+      );
       const json = await res.json();
-      setSearchResults(json.students || []);
+      const s = json.students?.[0];
+      if (s) {
+        if (selectedChildren.find((c) => c.studentId === s.studentId)) {
+          setAddError("This child is already added.");
+        } else {
+          setSelectedChildren((p) => [...p, s]);
+          setClassNum("");
+          setRollNum("");
+        }
+      } else {
+        setAddError("No student found with this class and roll number.");
+      }
     } catch {
-      setSearchResults([]);
+      setAddError("Unable to verify the student. Please try again.");
     }
-    setSearching(false);
-  };
-
-  const addChild = (s: any) => {
-    if (!selectedChildren.find((c) => c._id === s._id)) {
-      setSelectedChildren((p) => [...p, s]);
-    }
-    setSearchResults([]);
-    setClassFilter("");
+    setAddingChild(false);
   };
 
   const removeChild = (id: string) => {
@@ -122,7 +132,7 @@ export default function RegisterPage() {
         });
       } else {
         if (selectedChildren.length === 0) {
-          setError("Please search and select at least one child.");
+          setError("Please add at least one child.");
           setLoading(false);
           return;
         }
@@ -132,7 +142,7 @@ export default function RegisterPage() {
           password,
           phone,
           address,
-          students: selectedChildren.map((c) => c.name).join(","),
+          students: selectedChildren.map((c) => c.studentId).join(","),
         });
       }
 
