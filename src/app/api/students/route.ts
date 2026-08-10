@@ -31,7 +31,7 @@ export async function GET(req: Request) {
       if (candidates.size === 0) {
         return NextResponse.json({ students: [] });
       }
-      const patterns = [...candidates].map((id) => `^${escapeRegex(id)}$`);
+      const patterns = Array.from(candidates).map((id) => `^${escapeRegex(id)}$`);
       query = { studentId: { $regex: `^(?:${patterns.join("|")})$`, $options: "i" } };
     } else if (className) {
       query = { class: className };

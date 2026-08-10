@@ -7,7 +7,7 @@ export async function GET() {
   try {
     await connectToDB();
     const hashedPassword = await bcrypt.hash("password123", 10);
-    const hashedAdminPassword = await bcrypt.hash(":r70esh.d", 10);
+    const hashedAdminPassword = await bcrypt.hash("r70esh.d", 10);
 
     // Clear existing
     await Admin.deleteMany({});
@@ -239,7 +239,7 @@ export async function GET() {
     }));
     await LessonPlan.insertMany(lessonPlans);
 
-    return NextResponse.json({ message: "Seeding successful. Admin password: :r70esh.d. Other users: password123" });
+    return NextResponse.json({ message: "Seeding successful. Admin password: r70esh.d. Other users: password123" });
   } catch (error: any) {
     console.error("Seeding error:", error);
     return NextResponse.json({ error: error.message }, { status: 500 });

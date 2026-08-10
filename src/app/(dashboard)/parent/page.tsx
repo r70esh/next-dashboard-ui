@@ -31,8 +31,8 @@ const ParentPage = async () => {
   // Build per-child stats
   const childData = await Promise.all(
     children.map(async (child: any) => {
-      const results = await Result.find({ student: child.name }).sort({ date: -1 });
-      const attendance = await Attendance.find({ student: child.studentId });
+      const results = await Result.find({ $or: [{ student: child.name }, { student: child.studentId }] }).sort({ date: -1 });
+      const attendance = await Attendance.find({ $or: [{ student: child.studentId }, { student: child.name }] });
 
       let present = 0;
       let absent = 0;
