@@ -17,8 +17,8 @@ const ParentPage = async () => {
   await connectToDB();
   const parent = await Parent.findOne({ email: userEmail });
 
-  const childrenNames: string[] = parent?.students || [];
-  const children = await Student.find({ name: { $in: childrenNames } });
+  const linkedChildren: string[] = parent?.students || [];
+  const children = await Student.find({ $or: [{ studentId: { $in: linkedChildren } }, { name: { $in: linkedChildren } }] });
 
   const rawEvents = await EventModel.find({});
   const events = JSON.parse(JSON.stringify(rawEvents)).map((e: any) => ({

@@ -177,7 +177,7 @@ export async function createParent(data: any) {
       password: hashed,
       phone: data.phone,
       address: data.address,
-      students: data.students ? data.students.split(",").map((s: string) => s.trim()) : [],
+      students: toArray(data.students),
     });
     revalidatePath("/list/parents");
     return { success: true };
@@ -194,7 +194,7 @@ export async function updateParent(id: string, data: any) {
       email: data.email,
       phone: data.phone,
       address: data.address,
-      students: data.students ? data.students.split(",").map((s: string) => s.trim()) : [],
+      students: toArray(data.students),
     };
     if (data.password) update.password = await bcrypt.hash(data.password, 10);
     await Parent.findByIdAndUpdate(id, update);
@@ -1482,8 +1482,8 @@ export async function getMyChildrenSchedules() {
     if (!parent) {
       return { success: false, error: "Parent account not found.", children: [] };
     }
-    const names: string[] = Array.isArray(parent.students) ? parent.students : [];
-    const students = await Student.find({ name: { $in: names } });
+    const linked: string[] = Array.isArray(parent.students) ? parent.students : [];
+    const students = await Student.find({ $or: [{ studentId: { $in: linked } }, { name: { $in: linked } }] });
     const children: Array<{ id: string; name: string; className: string; photo: string; week: Record<string, any[]> }> = [];
     for (const s of students) {
       const className = String(s.class);

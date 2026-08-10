@@ -6,7 +6,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import InputField from "../InputField";
 import { createParent, updateParent } from "@/lib/actions";
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 
 const schema = z.object({
   name: z.string().min(2, { message: "Name must be at least 2 characters!" }),
@@ -32,11 +32,12 @@ const ParentForm = ({ type, data }: { type: "create" | "update"; data?: any }) =
   const [success, setSuccess] = useState("");
 
   // Child linking state
-  const [classFilter, setClassFilter] = useState("");
-  const [searchResults, setSearchResults] = useState<StudentOption[]>([]);
-  const [searching, setSearching] = useState(false);
+  const [childClass, setChildClass] = useState("");
+  const [childRoll, setChildRoll] = useState("");
+  const [addingChild, setAddingChild] = useState(false);
+  const [addError, setAddError] = useState("");
   const [selectedChildren, setSelectedChildren] = useState<StudentOption[]>(
-    data?.students ? data.students.map((name: string) => ({ name, studentId: "", _id: name, class: "" })) : []
+    data?.students ? data.students.map((id: string) => ({ name: id, studentId: id, _id: id, class: "" })) : []
   );
 
   const { register, handleSubmit, formState: { errors } } = useForm<Inputs>({
@@ -49,25 +50,60 @@ const ParentForm = ({ type, data }: { type: "create" | "update"; data?: any }) =
     },
   });
 
-  const searchStudents = async () => {
-    if (!classFilter.trim()) return;
-    setSearching(true);
-    try {
-      const res = await fetch(`/api/students?class=${classFilter.trim()}`);
-      const json = await res.json();
-      setSearchResults(json.students || []);
-    } catch {
-      setSearchResults([]);
-    }
-    setSearching(false);
-  };
+  // Resolve stored child refs (studentId or legacy name) so chips show real info.
+  useEffect(() => {
+    if (type !== "update" || !data?.students?.length) return;
+    let cancelled = false;
+    fetch("/api/students")
+      .then((r) => r.json())
+      .then((json) => {
+        if (cancelled) return;
+        const all: StudentOption[] = json.students || [];
+        const resolved = (data.students as string[]).map((v) => {
+          const vLower = String(v).trim().toLowerCase();
+          const found = all.find(
+            (s) =>
+              s.studentId.toLowerCase() === vLower ||
+              s.name.toLowerCase() === vLower
+          );
+          return found || { _id: v, name: v, studentId: "", class: "" };
+        });
+        setSelectedChildren(resolved);
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, [type, data]);
 
-  const addChild = (student: StudentOption) => {
-    if (!selectedChildren.find((c) => c._id === student._id)) {
-      setSelectedChildren((prev) => [...prev, student]);
+  const addChild = async () => {
+    if (!childClass.trim() || !childRoll.trim()) {
+      setAddError("Enter both class and roll number.");
+      return;
     }
-    setSearchResults([]);
-    setClassFilter("");
+    setAddingChild(true);
+    setAddError("");
+    try {
+      const res = await fetch(
+        `/api/students?class=${encodeURIComponent(childClass.trim())}&roll=${encodeURIComponent(childRoll.trim())}`
+      );
+      const json = await res.json();
+      const s = json.students?.[0];
+      if (s) {
+        if (selectedChildren.find((c) => c.studentId === s.studentId)) {
+          setAddError("This child is already linked.");
+        } else {
+          setSelectedChildren((prev) => [...prev, s]);
+          setChildClass("");
+          setChildRoll("");
+        }
+      } else {
+        setAddError("No student found with this class and roll number.");
+      }
+    } catch {
+      setAddError("Unable to verify the student. Please try again.");
+    }
+    setAddingChild(false);
   };
 
   const removeChild = (id: string) => {
@@ -87,7 +123,7 @@ const ParentForm = ({ type, data }: { type: "create" | "update"; data?: any }) =
 
     const payload = {
       ...formData,
-      students: selectedChildren.map((c) => c.name),
+      students: selectedChildren.map((c) => c.studentId || c.name),
     };
 
     let result;
@@ -154,53 +190,42 @@ const ParentForm = ({ type, data }: { type: "create" | "update"; data?: any }) =
         </div>
       )}
 
-      {/* Search by class */}
+      {/* Add child by class + roll */}
       <div className="flex flex-col gap-3 border border-gray-200 rounded-xl p-4 bg-gray-50">
-        <p className="text-sm font-medium text-gray-700">Search student by Class</p>
+        <p className="text-sm font-medium text-gray-700">Add child by Class &amp; Roll Number</p>
         <div className="flex gap-2">
           <input
-            type="text"
-            placeholder="Enter class (e.g. 3 or 3A)"
+            type="number"
+            min="1"
+            max="12"
+            placeholder="Class (1‑12)"
+            className="w-28 border border-gray-200 rounded-lg p-2 text-sm outline-none focus:ring-2 focus:ring-mahankalSky"
+            value={childClass}
+            onChange={(e) => setChildClass(e.target.value)}
+          />
+          <input
+            type="number"
+            min="1"
+            placeholder="Roll No."
             className="flex-1 border border-gray-200 rounded-lg p-2 text-sm outline-none focus:ring-2 focus:ring-mahankalSky"
-            value={classFilter}
-            onChange={(e) => setClassFilter(e.target.value)}
-            onKeyDown={(e) => e.key === "Enter" && (e.preventDefault(), searchStudents())}
+            value={childRoll}
+            onChange={(e) => setChildRoll(e.target.value)}
+            onKeyDown={(e) => e.key === "Enter" && (e.preventDefault(), addChild())}
           />
           <button
             type="button"
-            onClick={searchStudents}
-            disabled={searching}
+            onClick={addChild}
+            disabled={addingChild}
             className="bg-mahankalSky text-white px-4 py-2 rounded-lg text-sm font-medium disabled:opacity-60"
           >
-            {searching ? "..." : "Search"}
+            {addingChild ? "..." : "Add Child"}
           </button>
         </div>
 
-        {/* Results */}
-        {searchResults.length > 0 && (
-          <div className="flex flex-col gap-1 max-h-48 overflow-y-auto">
-            <p className="text-xs text-gray-400">Select your child:</p>
-            {searchResults.map((s) => (
-              <button
-                key={s._id}
-                type="button"
-                onClick={() => addChild(s)}
-                disabled={!!selectedChildren.find((c) => c._id === s._id)}
-                className="flex items-center justify-between bg-white border border-gray-200 rounded-lg px-3 py-2 hover:bg-mahankalSkyLight text-left disabled:opacity-50"
-              >
-                <span className="font-medium text-sm">{s.name}</span>
-                <div className="flex gap-2 text-xs text-gray-500">
-                  <span className="bg-gray-100 px-2 py-0.5 rounded">ID: {s.studentId}</span>
-                  <span className="bg-gray-100 px-2 py-0.5 rounded">Class {s.class}</span>
-                </div>
-              </button>
-            ))}
-          </div>
-        )}
-
-        {searchResults.length === 0 && classFilter && !searching && (
-          <p className="text-xs text-gray-400">No students found. Try a different class.</p>
-        )}
+        {addError && <p className="text-xs text-red-500 font-medium">{addError}</p>}
+        <p className="text-xs text-gray-400">
+          You can link multiple children. They will all appear on the parent&apos;s dashboard.
+        </p>
       </div>
 
       <button
