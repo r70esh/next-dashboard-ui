@@ -1,6 +1,7 @@
 import Announcements from "@/components/Announcements";
 import BigCalendar from "@/components/BigCalender";
 import EventCalendar from "@/components/EventCalendar";
+import StudentSchedule from "@/components/schedule/StudentSchedule";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import connectToDB from "@/lib/db";
@@ -120,6 +121,9 @@ const StudentPage = async () => {
           <h1 className="text-xl font-semibold mb-2">My Schedule</h1>
           <BigCalendar />
         </div>
+
+        {/* CLASS TIMETABLE */}
+        <StudentSchedule />
       </div>
 
       {/* RIGHT */}

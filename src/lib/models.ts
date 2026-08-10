@@ -152,6 +152,29 @@ const announcementSchema = new mongoose.Schema({
   date: { type: Date, required: true },
 }, { timestamps: true });
 
+// One document per (class, day, period) slot. Kept normalized so a single
+// class/day/period can be edited, copied or deleted without touching the rest
+// of the timetable.
+const scheduleEntrySchema = new mongoose.Schema({
+  class: { type: String, required: true },
+  day: {
+    type: String,
+    required: true,
+    enum: ["sunday", "monday", "tuesday", "wednesday", "thursday", "friday"],
+  },
+  period: { type: Number, required: true },
+  startTime: { type: String, required: true },
+  endTime: { type: String, required: true },
+  subject: { type: String, default: "" },
+  teacher: { type: String, default: "" },
+  room: { type: String, default: "" },
+  type: { type: String, enum: ["class", "break", "lunch", "assembly", "other"], default: "class" },
+  notes: { type: String, default: "" },
+}, { timestamps: true });
+
+scheduleEntrySchema.index({ class: 1, day: 1, period: 1 }, { unique: true });
+scheduleEntrySchema.index({ class: 1, day: 1 });
+
 export const Teacher = mongoose.models.Teacher || mongoose.model("Teacher", teacherSchema);
 export const Student = mongoose.models.Student || mongoose.model("Student", studentSchema);
 export const Parent = mongoose.models.Parent || mongoose.model("Parent", parentSchema);
@@ -166,4 +189,5 @@ export const Result = mongoose.models.Result || mongoose.model("Result", resultS
 export const Attendance = mongoose.models.Attendance || mongoose.model("Attendance", attendanceSchema);
 export const Event = mongoose.models.Event || mongoose.model("Event", eventSchema);
 export const Announcement = mongoose.models.Announcement || mongoose.model("Announcement", announcementSchema);
+export const ScheduleEntry = mongoose.models.ScheduleEntry || mongoose.model("ScheduleEntry", scheduleEntrySchema);
 

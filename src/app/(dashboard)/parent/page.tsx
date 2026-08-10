@@ -5,6 +5,7 @@ import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import connectToDB from "@/lib/db";
 import { Parent, Student, Result, Attendance, Event as EventModel } from "@/lib/models";
+import ParentSchedule from "@/components/schedule/ParentSchedule";
 import Image from "next/image";
 
 const bgList = ["bg-mahankalSkyLight", "bg-mahankalPurpleLight", "bg-mahankalYellowLight", "bg-pink-50"];
@@ -161,6 +162,9 @@ const ParentPage = async () => {
             </div>
           </div>
         ))}
+
+        {/* Class Timetables */}
+        <ParentSchedule />
 
         {/* Schedule */}
         <div className="bg-white p-4 rounded-xl">

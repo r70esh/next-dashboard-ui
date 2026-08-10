@@ -1,12 +1,12 @@
 "use server";
 
 import connectToDB from "@/lib/db";
-import { Teacher, Student, Parent, Admin, Subject, Class, Lesson, Exam, Assignment, Result, Attendance, Event, Announcement, LessonPlan } from "@/lib/models";
+import { Teacher, Student, Parent, Admin, Subject, Class, Lesson, Exam, Assignment, Result, Attendance, Event, Announcement, LessonPlan, ScheduleEntry } from "@/lib/models";
 import bcrypt from "bcryptjs";
 import { revalidatePath } from "next/cache";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
-import { getPeriodCountForClass, PERIOD_DURATION_MINUTES } from "@/lib/periods";
+import { getPeriodCountForClass, PERIOD_DURATION_MINUTES, WEEK_DAYS, DAY_LABELS } from "@/lib/periods";
 
 // ── TEACHER ──────────────────────────────────────────────────────────────────
 // `selfRegister` = account created from the public /register page.
@@ -1173,6 +1173,324 @@ export async function getWeeklyAttendanceData() {
       { name: "Thu", present: 17, absent: 3 },
       { name: "Fri", present: 19, absent: 1 },
     ];
+  }
+}
+
+// ── SCHEDULE (Class Routine) ─────────────────────────────────────────────────
+// One ScheduleEntry per (class, day, period) slot. Rows are edited on a
+// per-day grid and bulk-saved, but individual slots can also be saved/deleted
+// directly. Only admins can modify the timetable; students/parents/teachers
+// get read-only views scoped to their own class.
+
+const SCHEDULE_CLASS_REGEX = /^([1-9]|10|11|12)$/;
+const TIME_REGEX = /^\d{2}:\d{2}$/;
+const SCHEDULE_TYPES = ["class", "break", "lunch", "assembly", "other"];
+
+async function requireAdminSession() {
+  const session = await getServerSession(authOptions);
+  return (session?.user as any)?.role === "admin" ? session : null;
+}
+
+function validateSchedulePayload(data: any): string | null {
+  const cls = String(data.class || "").trim();
+  if (!SCHEDULE_CLASS_REGEX.test(cls)) return "Select a valid class (1-12).";
+  const day = String(data.day || "");
+  if (!WEEK_DAYS.some((d) => d.value === day)) return "Select a valid day.";
+  const period = Number(data.period);
+  if (!Number.isInteger(period) || period < 1) return "Select a valid period.";
+  const start = String(data.startTime || "");
+  const end = String(data.endTime || "");
+  if (!TIME_REGEX.test(start) || !TIME_REGEX.test(end)) return "Times must use HH:MM format (e.g. 10:10).";
+  if (start >= end) return "End time must be after start time.";
+  return null;
+}
+
+// Contiguous slots are allowed (one ends exactly when the next starts); true
+// overlaps are rejected.
+function checkDayOverlap(entries: any[]): string | null {
+  const sorted = [...entries].sort((a, b) => {
+    if (a.startTime === b.startTime) return Number(a.period) - Number(b.period);
+    return a.startTime < b.startTime ? -1 : 1;
+  });
+  for (let i = 1; i < sorted.length; i++) {
+    const prev = sorted[i - 1];
+    const curr = sorted[i];
+    if (prev.endTime > curr.startTime) {
+      return `Time overlap: ${prev.startTime}-${prev.endTime} conflicts with ${curr.startTime}-${curr.endTime}.`;
+    }
+  }
+  return null;
+}
+
+export async function getScheduleForClassDay(className: string, day: string) {
+  try {
+    await connectToDB();
+    const entries = await ScheduleEntry.find({ class: String(className), day }).sort({ period: 1 });
+    return { success: true, entries: JSON.parse(JSON.stringify(entries)) };
+  } catch (e: any) {
+    return { success: false, error: e.message, entries: [] };
+  }
+}
+
+export async function getWeeklyScheduleForClass(className: string) {
+  try {
+    await connectToDB();
+    const entries = await ScheduleEntry.find({ class: String(className) }).sort({ period: 1 });
+    const week: Record<string, any[]> = {};
+    for (const d of WEEK_DAYS) week[d.value] = [];
+    entries.forEach((e: any) => {
+      const obj = JSON.parse(JSON.stringify(e));
+      if (week[obj.day]) week[obj.day].push(obj);
+    });
+    return { success: true, week };
+  } catch (e: any) {
+    return { success: false, error: e.message, week: {} };
+  }
+}
+
+export async function saveScheduleEntry(data: any) {
+  try {
+    if (!(await requireAdminSession())) {
+      return { success: false, error: "Only admins can modify schedules." };
+    }
+    await connectToDB();
+    const err = validateSchedulePayload(data);
+    if (err) return { success: false, error: err };
+
+    const cls = String(data.class);
+    const day = String(data.day);
+    const period = Number(data.period);
+    const payload = {
+      class: cls,
+      day,
+      period,
+      startTime: data.startTime,
+      endTime: data.endTime,
+      subject: String(data.subject || "").trim(),
+      teacher: String(data.teacher || "").trim(),
+      room: String(data.room || "").trim(),
+      type: SCHEDULE_TYPES.includes(data.type) ? data.type : "class",
+      notes: String(data.notes || "").trim(),
+    };
+
+    if (data.id) {
+      await ScheduleEntry.findByIdAndUpdate(data.id, payload);
+    } else {
+      // Upsert on the unique (class, day, period) index so re-saving a slot
+      // never creates a duplicate row.
+      await ScheduleEntry.findOneAndUpdate(
+        { class: cls, day, period },
+        { $set: payload },
+        { upsert: true, new: true, setDefaultsOnInsert: true }
+      );
+    }
+    revalidatePath("/list/schedules");
+    return { success: true };
+  } catch (e: any) {
+    return { success: false, error: e.message };
+  }
+}
+
+export async function deleteScheduleEntry(id: string) {
+  try {
+    if (!(await requireAdminSession())) {
+      return { success: false, error: "Only admins can modify schedules." };
+    }
+    await connectToDB();
+    await ScheduleEntry.findByIdAndDelete(id);
+    revalidatePath("/list/schedules");
+    return { success: true };
+  } catch (e: any) {
+    return { success: false, error: e.message };
+  }
+}
+
+export async function bulkSaveSchedule(className: string, day: string, rows: any[]) {
+  try {
+    if (!(await requireAdminSession())) {
+      return { success: false, error: "Only admins can modify schedules." };
+    }
+    if (!WEEK_DAYS.some((d) => d.value === day)) {
+      return { success: false, error: "Select a valid day." };
+    }
+    await connectToDB();
+    const cls = String(className);
+    const entries: any[] = [];
+    for (const row of rows) {
+      const err = validateSchedulePayload({ ...row, class: cls, day });
+      if (err) return { success: false, error: `Period ${row.period}: ${err}` };
+      const { _id, ...clean } = row;
+      entries.push({ ...clean, class: cls, day });
+    }
+    const overlap = checkDayOverlap(entries);
+    if (overlap) return { success: false, error: overlap };
+
+    await ScheduleEntry.deleteMany({ class: cls, day });
+    if (entries.length > 0) {
+      await ScheduleEntry.insertMany(entries);
+    }
+    revalidatePath("/list/schedules");
+    return { success: true };
+  } catch (e: any) {
+    return { success: false, error: e.message };
+  }
+}
+
+export async function copyScheduleDay(
+  sourceClass: string,
+  sourceDay: string,
+  targetClass: string,
+  targetDay: string
+) {
+  try {
+    if (!(await requireAdminSession())) {
+      return { success: false, error: "Only admins can modify schedules." };
+    }
+    if (sourceClass === targetClass && sourceDay === targetDay) {
+      return { success: false, error: "Source and target are the same day." };
+    }
+    if (
+      !WEEK_DAYS.some((d) => d.value === sourceDay) ||
+      !WEEK_DAYS.some((d) => d.value === targetDay)
+    ) {
+      return { success: false, error: "Select valid days." };
+    }
+    await connectToDB();
+    const source = await ScheduleEntry.find({ class: String(sourceClass), day: sourceDay });
+    if (source.length === 0) {
+      return { success: false, error: `No schedule found for Class ${sourceClass} on ${DAY_LABELS[sourceDay]}.` };
+    }
+    const targetClassStr = String(targetClass);
+    const targetDayStr = String(targetDay);
+    await ScheduleEntry.deleteMany({ class: targetClassStr, day: targetDayStr });
+    await ScheduleEntry.insertMany(
+      source.map((e: any) => ({
+        class: targetClassStr,
+        day: targetDayStr,
+        period: e.period,
+        startTime: e.startTime,
+        endTime: e.endTime,
+        subject: e.subject || "",
+        teacher: e.teacher || "",
+        room: e.room || "",
+        type: e.type || "class",
+        notes: e.notes || "",
+      }))
+    );
+    revalidatePath("/list/schedules");
+    return { success: true };
+  } catch (e: any) {
+    return { success: false, error: e.message };
+  }
+}
+
+export async function copyScheduleWeek(sourceClass: string, targetClass: string) {
+  try {
+    if (!(await requireAdminSession())) {
+      return { success: false, error: "Only admins can modify schedules." };
+    }
+    if (sourceClass === targetClass) {
+      return { success: false, error: "Source and target class are the same." };
+    }
+    await connectToDB();
+    const source = await ScheduleEntry.find({ class: String(sourceClass) });
+    if (source.length === 0) {
+      return { success: false, error: `No schedule found for Class ${sourceClass}.` };
+    }
+    const target = String(targetClass);
+    await ScheduleEntry.deleteMany({ class: target });
+    await ScheduleEntry.insertMany(
+      source.map((e: any) => ({
+        class: target,
+        day: e.day,
+        period: e.period,
+        startTime: e.startTime,
+        endTime: e.endTime,
+        subject: e.subject || "",
+        teacher: e.teacher || "",
+        room: e.room || "",
+        type: e.type || "class",
+        notes: e.notes || "",
+      }))
+    );
+    revalidatePath("/list/schedules");
+    return { success: true };
+  } catch (e: any) {
+    return { success: false, error: e.message };
+  }
+}
+
+// Read-only accessors used by the student/parent/teacher dashboards. These do
+// NOT require an admin session; they resolve the caller's own class scope.
+export async function getMyClassSchedule() {
+  try {
+    const session = await getServerSession(authOptions);
+    const role = (session?.user as any)?.role;
+    if (role !== "student") {
+      return { success: false, error: "Only students can view this.", className: "", week: {} };
+    }
+    await connectToDB();
+    const student = await Student.findOne({
+      $or: [{ email: session?.user?.email }, { name: session?.user?.name }],
+    });
+    if (!student || !student.class) {
+      return { success: false, error: "No class assigned to your account.", className: "", week: {} };
+    }
+    const className = String(student.class);
+    const weekRes = await getWeeklyScheduleForClass(className);
+    return { success: true, className, week: weekRes.week || {} };
+  } catch (e: any) {
+    return { success: false, error: e.message, className: "", week: {} };
+  }
+}
+
+export async function getMyChildrenSchedules() {
+  try {
+    const session = await getServerSession(authOptions);
+    const role = (session?.user as any)?.role;
+    if (role !== "parent") {
+      return { success: false, error: "Only parents can view this.", children: [] };
+    }
+    await connectToDB();
+    const parent = await Parent.findOne({ email: session?.user?.email });
+    if (!parent) {
+      return { success: false, error: "Parent account not found.", children: [] };
+    }
+    const names: string[] = Array.isArray(parent.students) ? parent.students : [];
+    const students = await Student.find({ name: { $in: names } });
+    const children: Array<{ id: string; name: string; className: string; photo: string; week: Record<string, any[]> }> = [];
+    for (const s of students) {
+      const className = String(s.class);
+      const weekRes = await getWeeklyScheduleForClass(className);
+      children.push({
+        id: String(s._id),
+        name: s.name,
+        className,
+        photo: s.photo || "",
+        week: weekRes.week || {},
+      });
+    }
+    return { success: true, children };
+  } catch (e: any) {
+    return { success: false, error: e.message, children: [] };
+  }
+}
+
+export async function getTeacherAssignedClasses() {
+  try {
+    const session = await getServerSession(authOptions);
+    const role = (session?.user as any)?.role;
+    if (role !== "teacher") {
+      return { success: false, error: "Only teachers can view this.", classes: [] };
+    }
+    await connectToDB();
+    const teacher = await Teacher.findOne({
+      $or: [{ _id: (session?.user as any)?.id }, { email: session?.user?.email }],
+    });
+    const classes: string[] = (teacher?.classes || []).map(String).filter(Boolean);
+    return { success: true, classes };
+  } catch (e: any) {
+    return { success: false, error: e.message, classes: [] };
   }
 }
 
