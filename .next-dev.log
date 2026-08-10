@@ -12,3 +12,6 @@
  ✓ Compiled (181 modules)
  ○ Compiling /list/teachers ...
  ✓ Compiled /list/teachers in 11.3s (1253 modules)
+ ✓ Compiled in 2.3s (357 modules)
+ GET /list/teachers 200 in 14676ms
+ ○ Compiling /api/auth/[...nextauth] ...
