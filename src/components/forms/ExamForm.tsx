@@ -16,6 +16,7 @@ const schema = z.object({
     errorMap: () => ({ message: "Please select a class (1 to 12)." }),
   }),
   teacher: z.string().min(2, { message: "Teacher name is required!" }),
+  type: z.enum(["class_test", "terminal_exam"]),
   date: z.string().refine((val) => !isNaN(Date.parse(val)), { message: "Valid date required!" }),
 });
 
@@ -24,6 +25,11 @@ type Inputs = z.infer<typeof schema>;
 const inputCls =
   "w-full ring-[1.5px] ring-gray-300 p-2 rounded-md text-sm focus:outline-none focus:ring-mahankalSky";
 const labelCls = "text-xs text-gray-500 font-medium";
+
+const typeMeta = {
+  class_test: { label: "Class Test", emoji: "📋", desc: "One specific subject", color: "bg-amber-100 text-amber-800 border-amber-300" },
+  terminal_exam: { label: "Terminal Exam", emoji: "🎓", desc: "All subjects (admin only)", color: "bg-purple-100 text-purple-800 border-purple-300" },
+};
 
 const ExamForm = ({ type, data }: { type: "create" | "update"; data?: any }) => {
   const router = useRouter();
@@ -52,15 +58,18 @@ const ExamForm = ({ type, data }: { type: "create" | "update"; data?: any }) => 
     return CLASS_OPTIONS.includes(num) ? num : "";
   })();
 
-  const { register, handleSubmit, setValue, formState: { errors } } = useForm<Inputs>({
+  const { register, handleSubmit, setValue, watch, formState: { errors } } = useForm<Inputs>({
     resolver: zodResolver(schema),
     defaultValues: {
       subject: data?.subject || "",
       class: (defaultClass as any) || "",
       teacher: type === "create" ? creatorName : data?.teacher || "",
+      type: data?.type === "terminal_exam" ? "terminal_exam" : "class_test",
       date: data?.date ? new Date(data.date).toISOString().slice(0, 10) : "",
     },
   });
+
+  const selectedType = watch("type");
 
   // Auto-fill the logged-in teacher's name and keep it locked.
   useEffect(() => {
@@ -72,13 +81,13 @@ const ExamForm = ({ type, data }: { type: "create" | "update"; data?: any }) => 
   // Auto-select a value when a teacher has exactly one allowed option.
   useEffect(() => {
     if (!isTeacher) return;
-    if (scopeSubjects.length > 0 && !(scopeSubjects.length > 1)) {
+    if (selectedType === "class_test" && scopeSubjects.length > 0 && !(scopeSubjects.length > 1)) {
       setValue("subject", scopeSubjects[0], { shouldValidate: true });
     }
     if (scopeClasses.length > 0 && !(scopeClasses.length > 1)) {
       setValue("class", scopeClasses[0] as any, { shouldValidate: true });
     }
-  }, [isTeacher, scopeSubjects, scopeClasses, setValue]);
+  }, [isTeacher, selectedType, scopeSubjects, scopeClasses, setValue]);
 
   const onSubmit = handleSubmit(async (formData) => {
     setLoading(true);
@@ -102,15 +111,47 @@ const ExamForm = ({ type, data }: { type: "create" | "update"; data?: any }) => 
   return (
     <form className="flex flex-col gap-5" onSubmit={onSubmit}>
       <h1 className="text-xl font-semibold">
-        {type === "create" ? "Create Exam / Class Test" : "Update Exam"}
+        {type === "create" ? "Create Exam" : "Update Exam"}
       </h1>
 
       {error && <p className="text-red-500 text-sm bg-red-50 p-2 rounded">{error}</p>}
       {success && <p className="text-green-600 text-sm bg-green-50 p-2 rounded">{success}</p>}
 
+      {/* EXAM TYPE SELECTOR */}
+      <div className="flex flex-col gap-2">
+        <label className="text-xs font-bold text-slate-600 uppercase tracking-wider">Exam Type</label>
+        <div className="grid grid-cols-2 gap-2">
+          {(isTeacher ? ["class_test"] as const : ["class_test", "terminal_exam"] as const).map((t) => {
+            const meta = typeMeta[t];
+            const isSelected = selectedType === t;
+            return (
+              <label
+                key={t}
+                className={`cursor-pointer flex flex-col items-center gap-1 p-3 rounded-xl border-2 text-xs font-bold transition-all ${
+                  isSelected ? meta.color + " border-2" : "bg-slate-50 text-slate-600 border-slate-200 hover:bg-slate-100"
+                }`}
+              >
+                <input type="radio" value={t} {...register("type")} className="hidden" />
+                <span className="text-lg">{meta.emoji}</span>
+                <span>{meta.label}</span>
+                <span className="text-[9px] font-medium text-slate-500">{meta.desc}</span>
+              </label>
+            );
+          })}
+        </div>
+        {errors.type && <p className="text-red-500 text-xs">{errors.type.message}</p>}
+      </div>
+
       <div className="flex flex-col gap-1">
         <label className={labelCls}>Subject Name</label>
-        {isTeacher && scopeSubjects.length > 0 ? (
+        {selectedType === "terminal_exam" ? (
+          <input
+            className={inputCls + " bg-gray-100 cursor-not-allowed"}
+            disabled
+            value="All Subjects"
+            readOnly
+          />
+        ) : isTeacher && scopeSubjects.length > 0 ? (
           <select className={inputCls} {...register("subject")}>
             <option value="">Select subject</option>
             {scopeSubjects.map((s) => (
@@ -125,6 +166,9 @@ const ExamForm = ({ type, data }: { type: "create" | "update"; data?: any }) => 
           />
         )}
         {errors.subject && <p className="text-red-400 text-xs">{errors.subject.message}</p>}
+        {selectedType === "terminal_exam" && (
+          <p className="text-[10px] font-medium text-purple-600">Terminal Exam covers all subjects of the selected class.</p>
+        )}
       </div>
 
       <div className="flex flex-col gap-1">

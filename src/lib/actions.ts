@@ -356,12 +356,31 @@ async function enforceTeacherScope(data: any) {
 }
 
 // ── EXAM ──────────────────────────────────────────────────────────────────────
+// Resolves the exam type (class_test vs terminal_exam).
+// - class_test:   created by teacher OR admin, for one specific subject.
+// - terminal_exam: created by ADMIN ONLY, covers ALL subjects of the class.
+async function resolveExamPayload(data: any): Promise<{ ok: true; subject: string; type: string } | { ok: false; error: string }> {
+  const type = data.type === "terminal_exam" ? "terminal_exam" : "class_test";
+  if (type === "terminal_exam") {
+    const session = await getServerSession(authOptions);
+    const role = (session?.user as any)?.role;
+    if (role !== "admin") {
+      return { ok: false, error: "Only admins can create Terminal Exams." };
+    }
+    return { ok: true, subject: "All Subjects", type };
+  }
+  return { ok: true, subject: data.subject, type };
+}
+
 export async function createExam(data: any) {
   try {
     await connectToDB();
-    const scopeError = await enforceTeacherScope(data);
+    const resolved = await resolveExamPayload(data);
+    if (!resolved.ok) return { success: false, error: resolved.error };
+    const { subject, type } = resolved;
+    const scopeError = await enforceTeacherScope({ ...data, subject });
     if (scopeError) return { success: false, error: scopeError.error };
-    await Exam.create({ subject: data.subject, class: data.class, teacher: data.teacher, date: new Date(data.date) });
+    await Exam.create({ subject, class: data.class, teacher: data.teacher, type, date: new Date(data.date) });
     revalidatePath("/list/exams");
     return { success: true };
   } catch (e: any) { return { success: false, error: e.message }; }
@@ -378,12 +397,16 @@ export async function deleteExam(id: string) {
 export async function updateExam(id: string, data: any) {
   try {
     await connectToDB();
-    const scopeError = await enforceTeacherScope(data);
+    const resolved = await resolveExamPayload(data);
+    if (!resolved.ok) return { success: false, error: resolved.error };
+    const { subject, type } = resolved;
+    const scopeError = await enforceTeacherScope({ ...data, subject });
     if (scopeError) return { success: false, error: scopeError.error };
     await Exam.findByIdAndUpdate(id, {
-      subject: data.subject,
+      subject,
       class: data.class,
       teacher: data.teacher,
+      type,
       date: new Date(data.date),
     });
     revalidatePath("/list/exams");

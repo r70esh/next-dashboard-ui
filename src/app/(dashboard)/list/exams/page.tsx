@@ -27,21 +27,23 @@ type Exam = {
   subject: string;
   class: string;
   teacher: string;
+  type: string;
   date: string;
 };
 
 const columns = [
   { header: "Subject Name", accessor: "name" },
+  { header: "Type", accessor: "type", className: "hidden md:table-cell" },
   { header: "Class", accessor: "class" },
-  { header: "Teacher", accessor: "teacher", className: "hidden md:table-cell" },
-  { header: "Date", accessor: "date", className: "hidden md:table-cell" },
+  { header: "Teacher", accessor: "teacher", className: "hidden lg:table-cell" },
+  { header: "Date", accessor: "date", className: "hidden lg:table-cell" },
   { header: "Actions", accessor: "action" },
 ];
 
 const ExamListPage = async ({
   searchParams,
 }: {
-  searchParams: { search?: string; filter?: string; sort?: string };
+  searchParams: { search?: string; filter?: string; sort?: string; filterType?: string };
 }) => {
   const session = await getServerSession(authOptions);
   const role = (session?.user as any)?.role || "admin";
@@ -119,11 +121,11 @@ const ExamListPage = async ({
   const filteredData = filterAndSort(data, {
     search,
     filter: filterParam,
-    searchFields: ["subject", "class", "teacher"],
+    searchFields: ["subject", "class", "teacher", "type"],
     filterField: (e) => normaliseClass(e.class),
     sortField: sortField || undefined,
     sortDir,
-  });
+  }).filter((e) => !searchParams.filterType || (e.type || "class_test") === searchParams.filterType);
 
   const classOptions = Array.from(
     new Set(data.map((e) => normaliseClass(e.class)).filter(Boolean))
@@ -131,19 +133,35 @@ const ExamListPage = async ({
     .sort((a, b) => Number(a) - Number(b))
     .map((c) => ({ value: c, label: `Class ${c}` }));
 
+  const typeOptions = [
+    { value: "class_test", label: "Class Test" },
+    { value: "terminal_exam", label: "Terminal Exam" },
+  ];
+
   const renderRow = (item: Exam) => (
     <tr
       key={item.id}
       className="border-b border-gray-200 even:bg-slate-50 text-sm hover:bg-mahankalPurpleLight"
     >
       <td className="flex items-center gap-4 p-4 font-medium">{item.subject}</td>
+      <td className="hidden md:table-cell">
+        <span
+          className={`px-2 py-1 rounded text-xs font-bold border ${
+            item.type === "terminal_exam"
+              ? "bg-purple-100 text-purple-800 border-purple-300"
+              : "bg-amber-100 text-amber-800 border-amber-300"
+          }`}
+        >
+          {item.type === "terminal_exam" ? "Terminal Exam" : "Class Test"}
+        </span>
+      </td>
       <td>
-        <span className="bg-amber-100 text-amber-900 font-bold px-2 py-1 rounded text-xs">
+        <span className="bg-sky-100 text-sky-900 font-bold px-2 py-1 rounded text-xs">
           Class {normaliseClass(item.class) || item.class}
         </span>
       </td>
-      <td className="hidden md:table-cell">{item.teacher}</td>
-      <td className="hidden md:table-cell">{item.date}</td>
+      <td className="hidden lg:table-cell">{item.teacher}</td>
+      <td className="hidden lg:table-cell">{item.date}</td>
       <td>
         <div className="flex items-center gap-2">
           {(role === "admin" || role === "teacher") && (
@@ -172,6 +190,25 @@ const ExamListPage = async ({
               { value: "date:desc", label: "Date (Newest)" },
             ]}
           />
+          <select
+            value={searchParams.filterType || ""}
+            onChange={(e) => {
+              const params = new URLSearchParams(
+                Object.entries(searchParams)
+                  .filter(([k, v]) => k !== "filterType" && v)
+                  .map(([k, v]) => [k, v as string])
+              );
+              if (e.target.value) params.set("filterType", e.target.value);
+              (globalThis.location as any).href = `/list/exams${params.toString() ? `?${params.toString()}` : ""}`;
+            }}
+            className="h-8 max-w-[150px] text-[11px] font-bold text-slate-700 bg-mahankalYellow rounded-full px-2.5 cursor-pointer outline-none"
+            title="Exam Type"
+          >
+            <option value="">Exam Type</option>
+            {typeOptions.map((o) => (
+              <option key={o.value} value={o.value}>{o.label}</option>
+            ))}
+          </select>
           <div className="flex items-center gap-4 self-end">
             {(role === "admin" || role === "teacher") && <FormModal table="exam" type="create" />}
           </div>

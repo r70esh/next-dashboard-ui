@@ -106,6 +106,7 @@ const examSchema = new mongoose.Schema({
   subject: { type: String, required: true },
   class: { type: String, required: true },
   teacher: { type: String, required: true },
+  type: { type: String, enum: ["class_test", "terminal_exam"], default: "class_test" },
   date: { type: Date, required: true },
 }, { timestamps: true });
 
