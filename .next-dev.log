@@ -64,3 +64,9 @@
  GET /list/results?_rsc=x7o5z 200 in 157ms
  ✓ Compiled in 858ms (1856 modules)
  GET /list/results?_rsc=gfdsx 200 in 145ms
+ GET /api/auth/session 200 in 75ms
+ GET /list/subjects?_rsc=zz64h 200 in 95ms
+ POST /list/subjects 200 in 792ms
+ GET /list/subjects?_rsc=5aej4 200 in 302ms
+ POST /list/subjects 200 in 1248ms
+ GET /list/subjects?_rsc=5aej4 200 in 174ms
