@@ -160,6 +160,8 @@ export default function RegisterPage() {
         setSubjects("");
         setClassNum("");
         setRollNum("");
+        setChildClass("");
+        setChildRoll("");
         setSelectedChildren([]);
       } else {
         setError(result.error || "Something went wrong. Email may already be registered.");
