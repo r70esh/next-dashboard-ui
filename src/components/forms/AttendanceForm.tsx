@@ -7,10 +7,12 @@ import InputField from "../InputField";
 import { createAttendance, updateAttendance } from "@/lib/actions";
 import { useRouter } from "next/navigation";
 import { useState } from "react";
+import { getPeriodOptionsForClass } from "@/lib/periods";
 
 const schema = z.object({
   student: z.string().min(2, { message: "Student name is required!" }),
   date: z.string().optional(),
+  class: z.string().optional(),
   status: z.enum(["present", "absent", "late"], { errorMap: () => ({ message: "Status is required" }) }),
   period: z.string().optional(),
 });
@@ -23,7 +25,7 @@ const AttendanceForm = ({ type, data }: { type: "create" | "update"; data?: any 
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
 
-  const { register, handleSubmit, formState: { errors } } = useForm<Inputs>({
+  const { register, handleSubmit, watch, formState: { errors } } = useForm<Inputs>({
     resolver: zodResolver(schema),
     defaultValues: {
       student: data?.student || "",
@@ -32,6 +34,9 @@ const AttendanceForm = ({ type, data }: { type: "create" | "update"; data?: any 
       period: data?.period || "",
     },
   });
+
+  const selectedClass = watch("class") || data?.class || "";
+  const periodOptions = ["", ...getPeriodOptionsForClass(selectedClass || "1")];
 
   const onSubmit = handleSubmit(async (formData) => {
     setLoading(true);
@@ -61,11 +66,13 @@ const AttendanceForm = ({ type, data }: { type: "create" | "update"; data?: any 
       <InputField label="Class (1-12)" name="class" register={register} inputProps={{ defaultValue: data?.class || "" }} />
 
       <div className="flex flex-col gap-2">
-        <label className="text-sm font-medium text-gray-700">Period</label>
+        <label className="text-sm font-medium text-gray-700">
+          Period {selectedClass ? `(Class ${selectedClass}: ${periodOptions.length - 1} periods)` : ""}
+        </label>
         <select {...register("period")} className="border border-gray-300 rounded-md p-2 text-sm">
           <option value="">General (no period)</option>
-          {Array.from({ length: 8 }, (_, i) => String(i + 1)).map((p) => (
-            <option key={p} value={p}>Period {p}</option>
+          {periodOptions.slice(1).map((p) => (
+            <option key={p} value={p}>Period {p} (45 min)</option>
           ))}
         </select>
       </div>

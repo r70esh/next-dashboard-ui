@@ -6,6 +6,7 @@ import bcrypt from "bcryptjs";
 import { revalidatePath } from "next/cache";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
+import { getPeriodCountForClass, PERIOD_DURATION_MINUTES } from "@/lib/periods";
 
 // ── TEACHER ──────────────────────────────────────────────────────────────────
 // `selfRegister` = account created from the public /register page.
@@ -994,6 +995,15 @@ export async function bulkSaveAttendance(className: string, dateStr: string, per
     await connectToDB();
     if (!className || !dateStr || !records || records.length === 0) {
       return { success: false, error: "Class, date, and student records are required." };
+    }
+
+    // Guard: the period must be within the class's valid period count.
+    if (period) {
+      const maxPeriod = getPeriodCountForClass(className);
+      const p = parseInt(period, 10);
+      if (isNaN(p) || p < 1 || p > maxPeriod) {
+        return { success: false, error: `Class ${className} has only ${maxPeriod} periods (${maxPeriod} x ${PERIOD_DURATION_MINUTES} min).` };
+      }
     }
 
     const startOfDay = new Date(new Date(dateStr).setHours(0, 0, 0, 0));

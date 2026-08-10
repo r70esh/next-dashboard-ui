@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { getClassStudentsAndAttendance, bulkSaveAttendance } from "@/lib/actions";
 import { useRouter } from "next/navigation";
+import { getPeriodOptionsForClass, PERIOD_DURATION_MINUTES } from "@/lib/periods";
 
 type StudentAttendanceItem = {
   id: string;
@@ -12,8 +13,6 @@ type StudentAttendanceItem = {
   class: string;
   status: "present" | "absent" | "late";
 };
-
-const PERIOD_OPTIONS = Array.from({ length: 8 }, (_, i) => String(i + 1));
 
 export default function ClassAttendanceManager({
   availableClasses = ["1","2","3","4","5","6","7","8","9","10","11","12"],
@@ -30,6 +29,17 @@ export default function ClassAttendanceManager({
   const [loading, setLoading] = useState<boolean>(false);
   const [saving, setSaving] = useState<boolean>(false);
   const [message, setMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
+
+  // Periods depend on the selected class (1-3: 6, 4-10: 7, 11-12: 6)
+  const periodOptions = getPeriodOptionsForClass(selectedClass);
+
+  // Keep the selected period valid when the class changes.
+  useEffect(() => {
+    if (periodOptions.length > 0 && !periodOptions.includes(selectedPeriod)) {
+      setSelectedPeriod(periodOptions[0]);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedClass]);
 
   const fetchClassStudents = useCallback(async () => {
     if (!selectedClass) return;
@@ -94,7 +104,7 @@ export default function ClassAttendanceManager({
             <span>📋</span> Take Period Attendance
           </h2>
           <p className="text-xs text-slate-500 mt-1">
-            Select class, period, and date to mark present/absent for all students in one click.
+            Class {selectedClass} has {periodOptions.length} periods x {PERIOD_DURATION_MINUTES} min. Select a period and mark present/absent for all students.
           </p>
         </div>
 
@@ -122,9 +132,9 @@ export default function ClassAttendanceManager({
               onChange={(e) => setSelectedPeriod(e.target.value)}
               className="bg-white border border-slate-300 text-slate-800 text-xs font-bold rounded-xl p-2.5 outline-none focus:ring-2 focus:ring-sky-500 shadow-sm cursor-pointer"
             >
-              {PERIOD_OPTIONS.map((p) => (
+              {periodOptions.map((p) => (
                 <option key={p} value={p}>
-                  Period {p}
+                  Period {p} ({PERIOD_DURATION_MINUTES} min)
                 </option>
               ))}
             </select>

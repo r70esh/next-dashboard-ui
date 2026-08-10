@@ -3,15 +3,26 @@
 import { useEffect, useState } from "react";
 import { getPeriodAttendanceStats } from "@/lib/actions";
 import AttendanceChartClient from "./AttendanceChartClient";
+import { getPeriodOptionsForClass } from "@/lib/periods";
 
 const CLASS_OPTIONS = ["", "1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11", "12"];
-const PERIOD_OPTIONS = ["", "1", "2", "3", "4", "5", "6", "7", "8"];
 
 const AttendanceChart = () => {
   const [className, setClassName] = useState("1");
   const [period, setPeriod] = useState("1");
   const [data, setData] = useState<{ name: string; present: number; absent: number }[]>([]);
   const [loading, setLoading] = useState(true);
+
+  // Periods depend on the selected class (1-3: 6, 4-10: 7, 11-12: 6)
+  const periodOptions = ["", ...getPeriodOptionsForClass(className)];
+
+  // Keep the selected period valid when the class changes.
+  useEffect(() => {
+    if (!periodOptions.includes(period)) {
+      setPeriod(periodOptions[0]);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [className]);
 
   useEffect(() => {
     let cancelled = false;
@@ -47,7 +58,7 @@ const AttendanceChart = () => {
             onChange={(e) => setPeriod(e.target.value)}
             className="border border-slate-300 text-slate-800 text-xs font-bold rounded-lg p-1.5 outline-none focus:ring-2 focus:ring-sky-500 shadow-sm cursor-pointer bg-white"
           >
-            {PERIOD_OPTIONS.map((p) => (
+            {periodOptions.map((p) => (
               <option key={p || "all"} value={p}>
                 {p ? `Period ${p}` : "All Periods"}
               </option>
