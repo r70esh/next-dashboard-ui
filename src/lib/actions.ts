@@ -948,28 +948,6 @@ export async function updateUserProfile(id: string, role: string, data: { name?:
   }
 }
 
-export async function changeUserPassword(email: string, newPassword: string) {
-  try {
-    await connectToDB();
-    if (!email || !newPassword) {
-      return { success: false, error: "Email and new password are required." };
-    }
-    const hashed = await bcrypt.hash(newPassword, 10);
-    
-    let updated = await Admin.findOneAndUpdate({ email }, { password: hashed });
-    if (!updated) updated = await Teacher.findOneAndUpdate({ email }, { password: hashed });
-    if (!updated) updated = await Student.findOneAndUpdate({ email }, { password: hashed });
-    if (!updated) updated = await Parent.findOneAndUpdate({ email }, { password: hashed });
-
-    if (!updated) {
-      return { success: false, error: "User with this email was not found." };
-    }
-    return { success: true };
-  } catch (e: any) {
-    return { success: false, error: e.message };
-  }
-}
-
 // ── CLASS BULK ATTENDANCE ───────────────────────────────────────────────────
 // Fetch the students of a class with their attendance status for the given
 // date and period (period "1".."8"; empty period = whole-day / general).
@@ -1222,10 +1200,55 @@ function checkDayOverlap(entries: any[]): string | null {
   return null;
 }
 
+// ── MONTHLY ROUTINE HELPERS ──────────────────────────────────────────────────
+function parseMonthStr(monthStr: string): { year: number; month: number } | null {
+  const m = /^(\d{4})-(\d{2})$/.exec(String(monthStr || ""));
+  if (!m) return null;
+  const year = parseInt(m[1], 10);
+  const month = parseInt(m[2], 10);
+  if (month < 1 || month > 12) return null;
+  return { year, month };
+}
+
+function dateStrFor(year: number, month: number, day: number): string {
+  return `${year}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
+}
+
+function weekdayFor(dateStr: string): string {
+  const [y, m, d] = dateStr.split("-").map(Number);
+  return ["sunday", "monday", "tuesday", "wednesday", "thursday", "friday", "saturday"][
+    new Date(y, m - 1, d).getDay()
+  ];
+}
+
+// The previous schema used a unique index on (class, day, period). The monthly
+// feature stores one row per (class, day, period, date), so that old index
+// would wrongly block multiple dates for the same weekday slot. Drop it once
+// so the new (class, day, period, date) unique index is the only constraint.
+let scheduleIndexMigration: Promise<void> | null = null;
+function ensureScheduleIndexes(): Promise<void> {
+  if (!scheduleIndexMigration) {
+    scheduleIndexMigration = (async () => {
+      try {
+        const indexes = await ScheduleEntry.collection.indexes();
+        const legacy = indexes.find(
+          (i) =>
+            i.name === "class_1_day_1_period_1" &&
+            JSON.stringify(i.key) === JSON.stringify({ class: 1, day: 1, period: 1 })
+        );
+        if (legacy) await ScheduleEntry.collection.dropIndex("class_1_day_1_period_1");
+      } catch {
+        // Ignore: index already gone, or the collection does not exist yet.
+      }
+    })();
+  }
+  return scheduleIndexMigration;
+}
+
 export async function getScheduleForClassDay(className: string, day: string) {
   try {
     await connectToDB();
-    const entries = await ScheduleEntry.find({ class: String(className), day }).sort({ period: 1 });
+    const entries = await ScheduleEntry.find({ class: String(className), day, date: null }).sort({ period: 1 });
     return { success: true, entries: JSON.parse(JSON.stringify(entries)) };
   } catch (e: any) {
     return { success: false, error: e.message, entries: [] };
@@ -1235,7 +1258,7 @@ export async function getScheduleForClassDay(className: string, day: string) {
 export async function getWeeklyScheduleForClass(className: string) {
   try {
     await connectToDB();
-    const entries = await ScheduleEntry.find({ class: String(className) }).sort({ period: 1 });
+    const entries = await ScheduleEntry.find({ class: String(className), date: null }).sort({ period: 1 });
     const week: Record<string, any[]> = {};
     for (const d of WEEK_DAYS) week[d.value] = [];
     entries.forEach((e: any) => {
@@ -1263,6 +1286,7 @@ export async function saveScheduleEntry(data: any) {
     const payload = {
       class: cls,
       day,
+      date: null,
       period,
       startTime: data.startTime,
       endTime: data.endTime,
@@ -1276,10 +1300,10 @@ export async function saveScheduleEntry(data: any) {
     if (data.id) {
       await ScheduleEntry.findByIdAndUpdate(data.id, payload);
     } else {
-      // Upsert on the unique (class, day, period) index so re-saving a slot
-      // never creates a duplicate row.
+      // Upsert on the unique (class, day, period, date) index so re-saving a
+      // weekly slot never creates a duplicate row.
       await ScheduleEntry.findOneAndUpdate(
-        { class: cls, day, period },
+        { class: cls, day, period, date: null },
         { $set: payload },
         { upsert: true, new: true, setDefaultsOnInsert: true }
       );
@@ -1320,12 +1344,12 @@ export async function bulkSaveSchedule(className: string, day: string, rows: any
       const err = validateSchedulePayload({ ...row, class: cls, day });
       if (err) return { success: false, error: `Period ${row.period}: ${err}` };
       const { _id, ...clean } = row;
-      entries.push({ ...clean, class: cls, day });
+      entries.push({ ...clean, class: cls, day, date: null });
     }
     const overlap = checkDayOverlap(entries);
     if (overlap) return { success: false, error: overlap };
 
-    await ScheduleEntry.deleteMany({ class: cls, day });
+    await ScheduleEntry.deleteMany({ class: cls, day, date: null });
     if (entries.length > 0) {
       await ScheduleEntry.insertMany(entries);
     }
@@ -1356,17 +1380,18 @@ export async function copyScheduleDay(
       return { success: false, error: "Select valid days." };
     }
     await connectToDB();
-    const source = await ScheduleEntry.find({ class: String(sourceClass), day: sourceDay });
+    const source = await ScheduleEntry.find({ class: String(sourceClass), day: sourceDay, date: null });
     if (source.length === 0) {
       return { success: false, error: `No schedule found for Class ${sourceClass} on ${DAY_LABELS[sourceDay]}.` };
     }
     const targetClassStr = String(targetClass);
     const targetDayStr = String(targetDay);
-    await ScheduleEntry.deleteMany({ class: targetClassStr, day: targetDayStr });
+    await ScheduleEntry.deleteMany({ class: targetClassStr, day: targetDayStr, date: null });
     await ScheduleEntry.insertMany(
       source.map((e: any) => ({
         class: targetClassStr,
         day: targetDayStr,
+        date: null,
         period: e.period,
         startTime: e.startTime,
         endTime: e.endTime,
@@ -1393,16 +1418,17 @@ export async function copyScheduleWeek(sourceClass: string, targetClass: string)
       return { success: false, error: "Source and target class are the same." };
     }
     await connectToDB();
-    const source = await ScheduleEntry.find({ class: String(sourceClass) });
+    const source = await ScheduleEntry.find({ class: String(sourceClass), date: null });
     if (source.length === 0) {
       return { success: false, error: `No schedule found for Class ${sourceClass}.` };
     }
     const target = String(targetClass);
-    await ScheduleEntry.deleteMany({ class: target });
+    await ScheduleEntry.deleteMany({ class: target, date: null });
     await ScheduleEntry.insertMany(
       source.map((e: any) => ({
         class: target,
         day: e.day,
+        date: null,
         period: e.period,
         startTime: e.startTime,
         endTime: e.endTime,
@@ -1491,6 +1517,166 @@ export async function getTeacherAssignedClasses() {
     return { success: true, classes };
   } catch (e: any) {
     return { success: false, error: e.message, classes: [] };
+  }
+}
+
+// ── MONTHLY ROUTINE ──────────────────────────────────────────────────────────
+// The weekly pattern (date: null) repeats every week. "Copy to month"
+// materializes it into date-specific rows for every school day of a chosen
+// month, so the month is filled without per-day data entry. Each date can then
+// be edited (an override) or reset back to the weekly pattern.
+
+export async function copyScheduleToMonth(className: string, monthStr: string) {
+  try {
+    if (!(await requireAdminSession())) {
+      return { success: false, error: "Only admins can modify schedules." };
+    }
+    const parsed = parseMonthStr(monthStr);
+    if (!parsed) return { success: false, error: "Select a valid month." };
+    await connectToDB();
+    await ensureScheduleIndexes();
+    const cls = String(className);
+    const pattern = await ScheduleEntry.find({ class: cls, date: null });
+    if (pattern.length === 0) {
+      return { success: false, error: "Create the weekly routine for this class first, then copy it to the month." };
+    }
+    const patternByWeekday: Record<string, any[]> = {};
+    pattern.forEach((e: any) => {
+      (patternByWeekday[e.day] = patternByWeekday[e.day] || []).push(e);
+    });
+
+    const { year, month } = parsed;
+    const daysInMonth = new Date(year, month, 0).getDate();
+    let created = 0;
+    let skipped = 0;
+    for (let d = 1; d <= daysInMonth; d++) {
+      const dateStr = dateStrFor(year, month, d);
+      const weekday = weekdayFor(dateStr);
+      if (weekday === "saturday") continue;
+      const template = patternByWeekday[weekday];
+      if (!template || template.length === 0) continue;
+
+      const existing = await ScheduleEntry.find({ class: cls, date: dateStr });
+      if (existing.length > 0) {
+        skipped++;
+        continue;
+      }
+      await ScheduleEntry.insertMany(
+        template.map((e: any) => ({
+          class: cls,
+          day: weekday,
+          date: dateStr,
+          period: e.period,
+          startTime: e.startTime,
+          endTime: e.endTime,
+          subject: e.subject || "",
+          teacher: e.teacher || "",
+          room: e.room || "",
+          type: e.type || "class",
+          notes: e.notes || "",
+        }))
+      );
+      created++;
+    }
+    revalidatePath("/list/schedules");
+    return {
+      success: true,
+      message: `Copied the weekly routine to ${created} school day(s) in this month${
+        skipped > 0 ? ` · skipped ${skipped} date(s) you already customized.` : "."
+      }`,
+    };
+  } catch (e: any) {
+    return { success: false, error: e.message };
+  }
+}
+
+export async function getMonthlySchedule(className: string, monthStr: string) {
+  try {
+    const parsed = parseMonthStr(monthStr);
+    if (!parsed) return { success: false, error: "Select a valid month.", dates: [] };
+    await connectToDB();
+    const cls = String(className);
+    const { year, month } = parsed;
+    const startStr = dateStrFor(year, month, 1);
+    const endStr = dateStrFor(year, month, new Date(year, month, 0).getDate());
+
+    const pattern = await ScheduleEntry.find({ class: cls, date: null }).sort({ period: 1 });
+    const dateEntries = await ScheduleEntry.find({
+      class: cls,
+      date: { $gte: startStr, $lte: endStr },
+    }).sort({ period: 1 });
+
+    const patternByWeekday: Record<string, any[]> = {};
+    pattern.forEach((e: any) => {
+      (patternByWeekday[e.day] = patternByWeekday[e.day] || []).push(JSON.parse(JSON.stringify(e)));
+    });
+    const byDate: Record<string, any[]> = {};
+    dateEntries.forEach((e: any) => {
+      (byDate[e.date] = byDate[e.date] || []).push(JSON.parse(JSON.stringify(e)));
+    });
+
+    const daysInMonth = new Date(year, month, 0).getDate();
+    const dates: Array<{ date: string; weekday: string; isOverride: boolean; entries: any[] }> = [];
+    for (let d = 1; d <= daysInMonth; d++) {
+      const dateStr = dateStrFor(year, month, d);
+      const weekday = weekdayFor(dateStr);
+      const specific = byDate[dateStr] || [];
+      const effective = specific.length > 0 ? specific : patternByWeekday[weekday] || [];
+      dates.push({ date: dateStr, weekday, isOverride: specific.length > 0, entries: effective });
+    }
+    return { success: true, dates };
+  } catch (e: any) {
+    return { success: false, error: e.message, dates: [] };
+  }
+}
+
+export async function saveDateSchedule(className: string, dateStr: string, rows: any[]) {
+  try {
+    if (!(await requireAdminSession())) {
+      return { success: false, error: "Only admins can modify schedules." };
+    }
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) {
+      return { success: false, error: "Select a valid date." };
+    }
+    await connectToDB();
+    await ensureScheduleIndexes();
+    const cls = String(className);
+    const weekday = weekdayFor(dateStr);
+    const entries: any[] = [];
+    for (const row of rows) {
+      const err = validateSchedulePayload({ ...row, class: cls, day: weekday });
+      if (err) return { success: false, error: `Period ${row.period}: ${err}` };
+      const { _id, ...clean } = row;
+      entries.push({ ...clean, class: cls, day: weekday, date: dateStr });
+    }
+    const overlap = checkDayOverlap(entries);
+    if (overlap) return { success: false, error: overlap };
+
+    await ScheduleEntry.deleteMany({ class: cls, date: dateStr });
+    if (entries.length > 0) {
+      await ScheduleEntry.insertMany(entries);
+    }
+    revalidatePath("/list/schedules");
+    return { success: true };
+  } catch (e: any) {
+    return { success: false, error: e.message };
+  }
+}
+
+export async function resetDateSchedule(className: string, dateStr: string) {
+  try {
+    if (!(await requireAdminSession())) {
+      return { success: false, error: "Only admins can modify schedules." };
+    }
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(dateStr)) {
+      return { success: false, error: "Select a valid date." };
+    }
+    await connectToDB();
+    await ScheduleEntry.deleteMany({ class: String(className), date: dateStr });
+    revalidatePath("/list/schedules");
+    return { success: true };
+  } catch (e: any) {
+    return { success: false, error: e.message };
   }
 }
 

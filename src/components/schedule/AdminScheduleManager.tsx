@@ -7,11 +7,14 @@ import {
   bulkSaveSchedule,
   copyScheduleDay,
   copyScheduleWeek,
+  copyScheduleToMonth,
 } from "@/lib/actions";
 import { WEEK_DAYS, DAY_LABELS, buildDayLabels, getDefaultScheduleRows, getPeriodCountForClass } from "@/lib/periods";
 import { useRouter } from "next/navigation";
 import WeeklyTimetable, { type ScheduleRow } from "./WeeklyTimetable";
 import ScheduleEntryForm from "./ScheduleEntryForm";
+import MonthlyTimetable from "./MonthlyTimetable";
+import DateScheduleEditor from "./DateScheduleEditor";
 
 const CLASS_OPTIONS = ["1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11", "12"];
 
@@ -38,9 +41,22 @@ export default function AdminScheduleManager() {
   const [message, setMessage] = useState<{ type: "success" | "error"; text: string } | null>(null);
   const [form, setForm] = useState<FormState>(null);
 
-  const [weeklyView, setWeeklyView] = useState(false);
   const [weekData, setWeekData] = useState<Record<string, ScheduleRow[]>>({});
   const [loadingWeek, setLoadingWeek] = useState(false);
+
+  const [view, setView] = useState<"day" | "week" | "month">("day");
+  const [month, setMonth] = useState<string>(() => {
+    const now = new Date();
+    return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}`;
+  });
+  const [monthReload, setMonthReload] = useState(0);
+  const [copyingMonth, setCopyingMonth] = useState(false);
+  const [editingDate, setEditingDate] = useState<{
+    date: string;
+    weekday: string;
+    isOverride: boolean;
+    entries: ScheduleRow[];
+  } | null>(null);
 
   const [toDay, setToDay] = useState(WEEK_DAYS[1].value);
   const [toClass, setToClass] = useState("2");
@@ -78,12 +94,25 @@ export default function AdminScheduleManager() {
   }, [selectedClass]);
 
   const openWeeklyView = async () => {
-    setWeeklyView(true);
+    setView("week");
     setLoadingWeek(true);
     const res = await getWeeklyScheduleForClass(selectedClass);
     setLoadingWeek(false);
     if (res.success) setWeekData(res.week);
     else setMessage({ type: "error", text: res.error || "Failed to load weekly schedule." });
+  };
+
+  const handleCopyToMonth = async () => {
+    setCopyingMonth(true);
+    setMessage(null);
+    const res = await copyScheduleToMonth(selectedClass, month);
+    setCopyingMonth(false);
+    if (res.success) {
+      setMessage({ type: "success", text: res.message || "Monthly routine created!" });
+      setMonthReload((t) => t + 1);
+    } else {
+      setMessage({ type: "error", text: res.error || "Failed to copy to month." });
+    }
   };
 
   const loadDefaultDay = () => {
@@ -225,24 +254,18 @@ export default function AdminScheduleManager() {
             <div className="flex flex-col gap-1">
               <label className="text-[11px] font-bold text-slate-600 uppercase">View</label>
               <div className="flex items-center rounded-xl overflow-hidden border border-slate-300 bg-white shadow-sm">
-                <button
-                  type="button"
-                  onClick={() => setWeeklyView(false)}
-                  className={`text-xs font-bold px-3 py-2.5 transition ${
-                    !weeklyView ? "bg-sky-600 text-white" : "text-slate-600 hover:bg-slate-50"
-                  }`}
-                >
-                  Day
-                </button>
-                <button
-                  type="button"
-                  onClick={openWeeklyView}
-                  className={`text-xs font-bold px-3 py-2.5 transition ${
-                    weeklyView ? "bg-sky-600 text-white" : "text-slate-600 hover:bg-slate-50"
-                  }`}
-                >
-                  Week
-                </button>
+                {(["day", "week", "month"] as const).map((v) => (
+                  <button
+                    key={v}
+                    type="button"
+                    onClick={() => (v === "week" ? openWeeklyView() : setView(v))}
+                    className={`text-xs font-bold px-3 py-2.5 transition capitalize ${
+                      view === v ? "bg-sky-600 text-white" : "text-slate-600 hover:bg-slate-50"
+                    }`}
+                  >
+                    {v}
+                  </button>
+                ))}
               </div>
             </div>
           </div>
@@ -260,7 +283,7 @@ export default function AdminScheduleManager() {
           </div>
         )}
 
-        {!weeklyView && (
+        {view === "day" && (
           <div className="mt-4 flex flex-wrap items-center gap-2">
             <button
               type="button"
@@ -289,8 +312,8 @@ export default function AdminScheduleManager() {
         )}
       </div>
 
-      {/* COPY TOOLBAR */}
-      {!weeklyView && (
+      {/* COPY TOOLBAR (day editor) */}
+      {view === "day" && (
         <div className="bg-white p-4 rounded-2xl border border-slate-200 shadow-sm flex flex-wrap items-end gap-3">
           <div className="flex flex-col gap-1">
             <label className="text-[11px] font-bold text-slate-600 uppercase">Copy {DAY_LABELS[selectedDay]} to Day</label>
@@ -340,13 +363,13 @@ export default function AdminScheduleManager() {
       )}
 
       {/* WEEKLY VIEW */}
-      {weeklyView ? (
+      {view === "week" ? (
         <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm">
           <div className="flex items-center justify-between mb-4">
             <h3 className="font-bold text-slate-800 text-sm">Class {selectedClass} · Weekly Timetable</h3>
             <button
               type="button"
-              onClick={() => setWeeklyView(false)}
+              onClick={() => setView("day")}
               className="text-xs font-bold text-sky-600 hover:underline"
             >
               ← Back to Day Editor
@@ -357,6 +380,42 @@ export default function AdminScheduleManager() {
           ) : (
             <WeeklyTimetable className={selectedClass} week={weekData} />
           )}
+        </div>
+      ) : view === "month" ? (
+        /* MONTHLY VIEW */
+        <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm">
+          <div className="flex items-center justify-between mb-4 flex-wrap gap-3">
+            <div>
+              <h3 className="font-bold text-slate-800 text-sm">Class {selectedClass} · Monthly Routine</h3>
+              <p className="text-xs text-gray-400 mt-0.5">
+                Build the weekly routine once, then copy it to the whole month. Customized days are still editable.
+              </p>
+            </div>
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={() => setMonthReload((t) => t + 1)}
+                className="bg-white border border-slate-300 hover:bg-slate-50 text-slate-700 text-xs font-bold px-4 py-2.5 rounded-xl transition shadow-sm"
+              >
+                ↻ Refresh
+              </button>
+              <button
+                type="button"
+                onClick={handleCopyToMonth}
+                disabled={copyingMonth}
+                className="bg-amber-500 hover:bg-amber-600 disabled:opacity-50 text-white font-extrabold text-xs px-5 py-2.5 rounded-xl transition shadow-md"
+              >
+                {copyingMonth ? "Copying..." : `📅 Copy Weekly Routine → This Month`}
+              </button>
+            </div>
+          </div>
+          <MonthlyTimetable
+            className={selectedClass}
+            month={month}
+            reloadToken={monthReload}
+            onMonthChange={setMonth}
+            onDateClick={(info) => setEditingDate(info)}
+          />
         </div>
       ) : (
         <div className="bg-white p-5 rounded-2xl border border-slate-200 shadow-sm">
@@ -436,6 +495,17 @@ export default function AdminScheduleManager() {
           onClose={() => setForm(null)}
           onSave={handleFormSave}
           onDelete={form.mode === "edit" ? () => handleFormDelete(form.row) : undefined}
+        />
+      )}
+
+      {editingDate && (
+        <DateScheduleEditor
+          className={selectedClass}
+          dateStr={editingDate.date}
+          initialEntries={editingDate.entries}
+          isOverride={editingDate.isOverride}
+          onClose={() => setEditingDate(null)}
+          onChanged={() => setMonthReload((t) => t + 1)}
         />
       )}
     </div>

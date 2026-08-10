@@ -155,6 +155,8 @@ const announcementSchema = new mongoose.Schema({
 // One document per (class, day, period) slot. Kept normalized so a single
 // class/day/period can be edited, copied or deleted without touching the rest
 // of the timetable.
+// `date` (null) = the repeating weekly pattern; `date` ("YYYY-MM-DD") = an
+// override for one specific day (used by the monthly routine feature).
 const scheduleEntrySchema = new mongoose.Schema({
   class: { type: String, required: true },
   day: {
@@ -162,6 +164,7 @@ const scheduleEntrySchema = new mongoose.Schema({
     required: true,
     enum: ["sunday", "monday", "tuesday", "wednesday", "thursday", "friday"],
   },
+  date: { type: String, default: null },
   period: { type: Number, required: true },
   startTime: { type: String, required: true },
   endTime: { type: String, required: true },
@@ -172,8 +175,25 @@ const scheduleEntrySchema = new mongoose.Schema({
   notes: { type: String, default: "" },
 }, { timestamps: true });
 
-scheduleEntrySchema.index({ class: 1, day: 1, period: 1 }, { unique: true });
+// Unique per weekly pattern slot AND per date-specific slot.
+scheduleEntrySchema.index({ class: 1, day: 1, period: 1, date: 1 }, { unique: true });
 scheduleEntrySchema.index({ class: 1, day: 1 });
+scheduleEntrySchema.index({ class: 1, date: 1 });
+
+const passwordResetTokenSchema = new mongoose.Schema(
+  {
+    email: { type: String, required: true },
+    codeHash: { type: String, required: true },
+    tokenHash: { type: String, required: true },
+    expiresAt: { type: Date, required: true },
+    attempts: { type: Number, default: 0 },
+    verified: { type: Boolean, default: false },
+  },
+  { timestamps: true }
+);
+passwordResetTokenSchema.index({ email: 1 });
+passwordResetTokenSchema.index({ tokenHash: 1 });
+passwordResetTokenSchema.index({ expiresAt: 1 }, { expireAfterSeconds: 0 });
 
 export const Teacher = mongoose.models.Teacher || mongoose.model("Teacher", teacherSchema);
 export const Student = mongoose.models.Student || mongoose.model("Student", studentSchema);
@@ -190,4 +210,5 @@ export const Attendance = mongoose.models.Attendance || mongoose.model("Attendan
 export const Event = mongoose.models.Event || mongoose.model("Event", eventSchema);
 export const Announcement = mongoose.models.Announcement || mongoose.model("Announcement", announcementSchema);
 export const ScheduleEntry = mongoose.models.ScheduleEntry || mongoose.model("ScheduleEntry", scheduleEntrySchema);
+export const PasswordResetToken = mongoose.models.PasswordResetToken || mongoose.model("PasswordResetToken", passwordResetTokenSchema);
 
