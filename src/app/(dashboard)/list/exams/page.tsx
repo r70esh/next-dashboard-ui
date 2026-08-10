@@ -4,6 +4,7 @@ import FormModal from "@/components/FormModal";
 import Pagination from "@/components/Pagination";
 import Table from "@/components/Table";
 import TableToolbar from "@/components/TableToolbar";
+import FilterSelect from "@/components/FilterSelect";
 import connectToDB from "@/lib/db";
 import { Exam as ExamModel, Teacher, Student, Parent } from "@/lib/models";
 import { getServerSession } from "next-auth";
@@ -190,25 +191,11 @@ const ExamListPage = async ({
               { value: "date:desc", label: "Date (Newest)" },
             ]}
           />
-          <select
-            value={searchParams.filterType || ""}
-            onChange={(e) => {
-              const params = new URLSearchParams(
-                Object.entries(searchParams)
-                  .filter(([k, v]) => k !== "filterType" && v)
-                  .map(([k, v]) => [k, v as string])
-              );
-              if (e.target.value) params.set("filterType", e.target.value);
-              (globalThis.location as any).href = `/list/exams${params.toString() ? `?${params.toString()}` : ""}`;
-            }}
-            className="h-8 max-w-[150px] text-[11px] font-bold text-slate-700 bg-mahankalYellow rounded-full px-2.5 cursor-pointer outline-none"
-            title="Exam Type"
-          >
-            <option value="">Exam Type</option>
-            {typeOptions.map((o) => (
-              <option key={o.value} value={o.value}>{o.label}</option>
-            ))}
-          </select>
+          <FilterSelect
+            options={typeOptions}
+            placeholder="Exam Type"
+            paramKey="filterType"
+          />
           <div className="flex items-center gap-4 self-end">
             {(role === "admin" || role === "teacher") && <FormModal table="exam" type="create" />}
           </div>
