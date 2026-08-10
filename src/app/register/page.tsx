@@ -52,8 +52,8 @@ export default function RegisterPage() {
   const [generatedId, setGeneratedId] = useState("");
 
   // Parent-specific
-  const [classNum, setClassNum] = useState("");
-  const [rollNum, setRollNum] = useState("");
+  const [childClass, setChildClass] = useState("");
+  const [childRoll, setChildRoll] = useState("");
   const [addingChild, setAddingChild] = useState(false);
   const [addError, setAddError] = useState("");
   const [selectedChildren, setSelectedChildren] = useState<any[]>([]);
@@ -71,7 +71,7 @@ export default function RegisterPage() {
   }, [classNum, rollNum]);
 
   const addChild = async () => {
-    if (!classNum.trim() || !rollNum.trim()) {
+    if (!childClass.trim() || !childRoll.trim()) {
       setAddError("Enter both class and roll number.");
       return;
     }
@@ -79,7 +79,7 @@ export default function RegisterPage() {
     setAddError("");
     try {
       const res = await fetch(
-        `/api/students?class=${encodeURIComponent(classNum.trim())}&roll=${encodeURIComponent(rollNum.trim())}`
+        `/api/students?class=${encodeURIComponent(childClass.trim())}&roll=${encodeURIComponent(childRoll.trim())}`
       );
       const json = await res.json();
       const s = json.students?.[0];
@@ -88,8 +88,8 @@ export default function RegisterPage() {
           setAddError("This child is already added.");
         } else {
           setSelectedChildren((p) => [...p, s]);
-          setClassNum("");
-          setRollNum("");
+          setChildClass("");
+          setChildRoll("");
         }
       } else {
         setAddError("No student found with this class and roll number.");
@@ -342,7 +342,7 @@ export default function RegisterPage() {
               </div>
             )}
 
-            {/* Parent: search child by class */}
+            {/* Parent: add children by class + roll number */}
             {role === "parent" && (
               <div className="flex flex-col gap-3">
                 {selectedChildren.length > 0 && (
@@ -353,7 +353,7 @@ export default function RegisterPage() {
                         className="flex items-center gap-2 bg-pink-50 border border-pink-300 rounded-full px-3 py-1 text-xs font-semibold text-pink-900"
                       >
                         <span>{c.name}</span>
-                        <span className="text-pink-600">({c.studentId})</span>
+                        <span className="text-pink-600">(Class {c.class} · {c.studentId})</span>
                         <button
                           type="button"
                           onClick={() => removeChild(c._id)}
@@ -367,54 +367,42 @@ export default function RegisterPage() {
                 )}
 
                 <div className="border border-slate-200 rounded-xl p-4 bg-slate-50 flex flex-col gap-2">
-                  <label className="text-xs font-bold text-slate-700">Find your child by Class</label>
+                  <label className="text-xs font-bold text-slate-700">
+                    Add your child by Class &amp; Roll Number
+                  </label>
                   <div className="flex gap-2">
                     <input
-                      type="text"
-                      placeholder="Enter class number (e.g. 3)"
+                      type="number"
+                      min="1"
+                      max="12"
+                      placeholder="Class (1‑12)"
+                      className="w-28 border border-slate-300 rounded-xl p-2.5 text-sm outline-none focus:ring-2 focus:ring-pink-500 bg-white"
+                      value={childClass}
+                      onChange={(e) => setChildClass(e.target.value)}
+                    />
+                    <input
+                      type="number"
+                      min="1"
+                      placeholder="Roll No."
                       className="flex-1 border border-slate-300 rounded-xl p-2.5 text-sm outline-none focus:ring-2 focus:ring-pink-500 bg-white"
-                      value={classFilter}
-                      onChange={(e) => setClassFilter(e.target.value)}
-                      onKeyDown={(e) => e.key === "Enter" && (e.preventDefault(), searchStudents())}
+                      value={childRoll}
+                      onChange={(e) => setChildRoll(e.target.value)}
+                      onKeyDown={(e) => e.key === "Enter" && (e.preventDefault(), addChild())}
                     />
                     <button
                       type="button"
-                      onClick={searchStudents}
-                      disabled={searching}
+                      onClick={addChild}
+                      disabled={addingChild}
                       className="cursor-pointer bg-pink-600 hover:bg-pink-700 text-white px-4 py-2.5 rounded-xl text-xs font-bold transition disabled:opacity-60"
                     >
-                      {searching ? "Searching..." : "Search"}
+                      {addingChild ? "Checking..." : "Add Child"}
                     </button>
                   </div>
 
-                  {searchResults.length > 0 && (
-                    <div className="mt-2 flex flex-col gap-1.5 max-h-40 overflow-y-auto">
-                      <span className="text-[11px] font-bold text-slate-400">Click to select child:</span>
-                      {searchResults.map((s) => (
-                        <button
-                          key={s._id}
-                          type="button"
-                          onClick={() => addChild(s)}
-                          disabled={!!selectedChildren.find((c) => c._id === s._id)}
-                          className="cursor-pointer flex items-center justify-between bg-white border border-slate-200 rounded-xl p-2.5 hover:bg-pink-50 text-left disabled:opacity-40 transition"
-                        >
-                          <span className="font-semibold text-xs text-slate-800">{s.name}</span>
-                          <div className="flex gap-1.5 text-[10px]">
-                            <span className="bg-slate-100 font-medium px-2 py-0.5 rounded text-slate-600">
-                              ID: {s.studentId}
-                            </span>
-                            <span className="bg-slate-100 font-medium px-2 py-0.5 rounded text-slate-600">
-                              Class {s.class}
-                            </span>
-                          </div>
-                        </button>
-                      ))}
-                    </div>
-                  )}
-
-                  {searchResults.length === 0 && classFilter && !searching && (
-                    <p className="text-xs text-slate-400 mt-1">No students found for this class.</p>
-                  )}
+                  {addError && <p className="text-xs text-red-500 font-medium">{addError}</p>}
+                  <p className="text-[11px] text-slate-400">
+                    You can add multiple children. All their schedules, results and attendance will appear on your dashboard.
+                  </p>
                 </div>
               </div>
             )}
